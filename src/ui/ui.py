@@ -31,12 +31,12 @@ class UI:
             self.font_medium = pygame.font.SysFont("arial", 36)
             self.font_small = pygame.font.SysFont("arial", 24)
     
-    def draw(self, surface, player, wave, score, enemies_remaining, in_wave_break, wave_timer, wave_break_duration, level_system=None, camera_x=0.0, camera_y=0.0):
+    def draw(self, surface, player, wave, score, enemies_remaining, in_wave_break, wave_timer, wave_break_duration, level_system=None, camera_x=0.0, camera_y=0.0, boss_notification_timer=0, is_boss_wave=False):
         # Draw health bar
         self.draw_health_bar(surface, player)
         
         # Draw wave info
-        self.draw_wave_info(surface, wave, enemies_remaining, in_wave_break, wave_timer, wave_break_duration)
+        self.draw_wave_info(surface, wave, enemies_remaining, in_wave_break, wave_timer, wave_break_duration, boss_notification_timer, is_boss_wave)
         
         # Draw score
         self.draw_score(surface, score)
@@ -96,20 +96,31 @@ class UI:
         text_surface = self.font_small.render(health_text, True, self.WHITE)
         surface.blit(text_surface, (bar_x, bar_y + bar_height + 5))
     
-    def draw_wave_info(self, surface, wave, enemies_remaining, in_wave_break, wave_timer, wave_break_duration):
+    def draw_wave_info(self, surface, wave, enemies_remaining, in_wave_break, wave_timer, wave_break_duration, boss_notification_timer=0, is_boss_wave=False):
         # Position in top center
         center_x = self.screen_width // 2
         y = 20
         
-        if in_wave_break:
+        # Handle boss notification
+        if boss_notification_timer > 0:
+            time_left = boss_notification_timer / 1000.0
+            text = f"⚠️ BOSS WAVE {wave} INCOMING IN: {time_left:.1f}s ⚠️"
+            color = self.CORAL  # Red warning color
+            
+            # Add pulsing effect for boss warning
+            pulse = abs(int((boss_notification_timer % 500) / 500 * 255))
+            color = (min(255, color[0] + pulse//4), color[1], color[2])
+            
+        elif in_wave_break:
             # Show wave break countdown
             time_left = (wave_break_duration - wave_timer) / 1000.0
             text = f"WAVE {wave} INCOMING IN: {time_left:.1f}s"
             color = self.CYAN
         else:
             # Show current wave and enemies remaining
-            text = f"WAVE {wave} - ENEMIES: {enemies_remaining}"
-            color = self.ROYAL_BLUE
+            wave_type = " (BOSS WAVE)" if is_boss_wave else ""
+            text = f"WAVE {wave}{wave_type} - ENEMIES: {enemies_remaining}"
+            color = self.CORAL if is_boss_wave else self.ROYAL_BLUE
         
         text_surface = self.font_medium.render(text, True, color)
         text_rect = text_surface.get_rect(center=(center_x, y + 15))

@@ -428,7 +428,9 @@ class Player(pygame.sprite.Sprite):
     
     def get_auto_target_shot(self, enemies):
         """Get auto-targeting projectile if ready"""
-        if self.auto_targeting_level > 0 and self.auto_target_timer <= 0:
+        # Cap auto-targeting level to prevent excessive firing
+        effective_level = min(self.auto_targeting_level, 5)
+        if effective_level > 0 and self.auto_target_timer <= 0:
             # Find nearest enemy
             nearest_enemy = None
             min_distance = float('inf')
@@ -448,13 +450,14 @@ class Player(pygame.sprite.Sprite):
                 angle = math.atan2(dy, dx)
                 
                 # Create projectile with auto-targeting type
-                damage = int(15 * self.auto_targeting_level * self.base_damage_multiplier)
+                damage = int(15 * effective_level * self.base_damage_multiplier)
                 proj = Projectile(self.rect.centerx, self.rect.centery, angle, damage=damage, 
                                 speed=600, weapon_type="auto_targeting", max_range=400)
                 
-                # Set cooldown based on level
-                cooldown = max(800 - (self.auto_targeting_level * 200), 200)
-                self.auto_target_timer = cooldown
+                # Set cooldown based on level - more reasonable scaling
+                base_cooldown = 1000  # Base 1 second cooldown
+                level_reduction = min(effective_level * 100, 600)  # Max 600ms reduction
+                self.auto_target_timer = max(400, base_cooldown - level_reduction)  # Min 400ms cooldown
                 
                 return proj
         return None
@@ -465,7 +468,7 @@ class Player(pygame.sprite.Sprite):
         
         # Orbital Missiles
         if self.orbital_missiles_level > 0 and self.missile_timer <= 0:
-            missile_count = self.orbital_missiles_level
+            missile_count = min(self.orbital_missiles_level, 4)  # Cap at 4 missiles per volley
             for i in range(missile_count):
                 angle = (i / missile_count) * 2 * math.pi
                 # Missiles spawn around player and seek targets
@@ -477,7 +480,10 @@ class Player(pygame.sprite.Sprite):
                     "homing": True
                 }
                 attacks.append(missile)
-            self.missile_timer = 3000  # Every 3 seconds
+            # Faster firing with higher levels but reasonable limits
+            base_cooldown = 2500  # Base 2.5 seconds
+            level_reduction = min(self.orbital_missiles_level * 200, 1500)  # Max 1.5s reduction
+            self.missile_timer = max(1000, base_cooldown - level_reduction)  # Min 1s cooldown
         
         # Laser Turret
         if self.laser_turret_level > 0 and self.turret_timer <= 0:
@@ -489,11 +495,14 @@ class Player(pygame.sprite.Sprite):
                 "continuous": True
             }
             attacks.append(laser)
-            self.turret_timer = 100 * (4 - self.laser_turret_level)  # Faster with level
+            # Proper timer calculation: faster with level but never too fast
+            base_cooldown = 400  # Base 400ms cooldown
+            level_reduction = min(self.laser_turret_level * 50, 300)  # Max 300ms reduction
+            self.turret_timer = max(100, base_cooldown - level_reduction)  # Min 100ms cooldown
         
         # Combat Drone
         if self.drone_companion_level > 0 and self.drone_timer <= 0:
-            drone_count = self.drone_companion_level
+            drone_count = min(self.drone_companion_level, 3)  # Cap at 3 drones
             for i in range(drone_count):
                 drone = {
                     "type": "drone_shot",
@@ -503,7 +512,10 @@ class Player(pygame.sprite.Sprite):
                     "auto_aim": True
                 }
                 attacks.append(drone)
-            self.drone_timer = 1500  # Every 1.5 seconds
+            # Faster firing with higher levels but reasonable limits
+            base_cooldown = 1200  # Base 1.2 seconds
+            level_reduction = min(self.drone_companion_level * 100, 700)  # Max 700ms reduction
+            self.drone_timer = max(500, base_cooldown - level_reduction)  # Min 500ms cooldown
         
         return attacks
     

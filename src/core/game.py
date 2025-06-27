@@ -89,14 +89,18 @@ class Game:
         self.main_menu = MainMenu(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
         self.cheat_menu = CheatMenu(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
         
-        # Wave system
+        # Wave system - Enhanced for horde mode
         self.current_wave = 1
-        self.enemies_in_wave = 10
+        self.base_enemies_per_wave = 15  # Increased base count for horde feel
+        self.enemies_in_wave = self.base_enemies_per_wave
         self.enemies_spawned = 0
         self.enemies_killed = 0
         self.wave_timer = 0
-        self.wave_break_duration = 3000  # 3 seconds between waves
+        self.wave_break_duration = 2000  # Reduced to 2 seconds for faster pacing
         self.in_wave_break = False
+        self.is_boss_wave = False
+        self.boss_notification_timer = 0
+        self.boss_notification_duration = 3000  # 3 seconds to show boss warning
         
         # Game stats
         self.score = 0
@@ -192,37 +196,71 @@ class Game:
             if new_projectiles:
                 self.sound_manager.play_sound("shoot")
         
+        # Limit total projectiles to prevent performance issues
+        max_projectiles = 150  # Reasonable limit for performance
+        
         # Handle auto-targeting system
-        auto_shot = self.player.get_auto_target_shot(self.enemies)
-        if auto_shot:
-            self.projectiles.add(auto_shot)
-            self.sound_manager.play_sound("shoot")
+        # Only allow auto-targeting if we haven't hit projectile limit
+        if len(self.projectiles) < max_projectiles:
+            # Count existing auto-targeting projectiles
+            auto_projectiles = sum(1 for proj in self.projectiles if hasattr(proj, 'weapon_type') and proj.weapon_type == "auto_targeting")
+            max_auto_projectiles = 20  # Limit auto-targeting projectiles specifically
+            
+            if auto_projectiles < max_auto_projectiles:
+                auto_shot = self.player.get_auto_target_shot(self.enemies)
+                if auto_shot:
+                    self.projectiles.add(auto_shot)
+                    self.sound_manager.play_sound("shoot")
         
         # Handle passive weapon attacks
-        passive_attacks = self.player.get_passive_attacks()
-        for attack in passive_attacks:
-            self.handle_passive_attack(attack)
+        if len(self.projectiles) < max_projectiles:
+            passive_attacks = self.player.get_passive_attacks()
+            for attack in passive_attacks:
+                if len(self.projectiles) < max_projectiles:  # Check again before each attack
+                    self.handle_passive_attack(attack)
         
-        # Spawn enemies
+        # Spawn enemies - Enhanced for horde mode
         if not self.in_wave_break and self.enemies_spawned < self.enemies_in_wave:
             if self.enemy_spawner.should_spawn(dt):
                 enemy = self.enemy_spawner.spawn_enemy(self.current_wave, self.player.rect.center)
                 if enemy:
+                    # Handle group spawning (especially for swarm enemies)
+                    spawn_count = self.enemy_spawner.get_spawn_count_for_type(enemy.enemy_type, self.current_wave)
+                    
+                    # Add the main enemy
                     self.enemies.add(enemy)
                     self.enemies_spawned += 1
+                    
+                    # Add additional enemies for group spawning
+                    for i in range(1, min(spawn_count, self.enemies_in_wave - self.enemies_spawned + 1)):
+                        # Spawn additional enemies nearby
+                        offset_x = random.randint(-50, 50)
+                        offset_y = random.randint(-50, 50)
+                        spawn_x, spawn_y = self.enemy_spawner.get_spawn_position(self.player.rect.center)
+                        additional_enemy = Enemy(spawn_x + offset_x, spawn_y + offset_y, enemy.enemy_type, self.current_wave)
+                        self.enemies.add(additional_enemy)
+                        self.enemies_spawned += 1
+                        
+                        if self.enemies_spawned >= self.enemies_in_wave:
+                            break
         
         # Update enemies
         for enemy in self.enemies:
             enemy.update(dt, self.player.rect.center)
         
         # Update projectiles
+        projectiles_to_remove = []
         for projectile in self.projectiles:
             projectile.update(dt)
-            # Remove projectiles that are off-world bounds (with buffer)
+            # Remove projectiles that are off-world bounds (with buffer) or marked for removal
             buffer = 100
             if (projectile.rect.x < -buffer or projectile.rect.x > self.WORLD_WIDTH + buffer or
                 projectile.rect.y < -buffer or projectile.rect.y > self.WORLD_HEIGHT + buffer):
-                self.projectiles.remove(projectile)
+                projectiles_to_remove.append(projectile)
+        
+        # Remove projectiles safely
+        for projectile in projectiles_to_remove:
+            self.projectiles.remove(projectile)
         
         # Update powerups
         for powerup in self.powerups:
@@ -295,6 +333,13 @@ class Game:
         self.camera_y += (target_y - self.camera_y) * self.camera_smooth
     
     def update_wave_system(self, dt):
+        # Handle boss notification timer
+        if self.boss_notification_timer > 0:
+            self.boss_notification_timer -= dt
+            if self.boss_notification_timer <= 0:
+                self.in_wave_break = True
+                self.wave_timer = 0
+        
         if self.in_wave_break:
             self.wave_timer += dt
             if self.wave_timer >= self.wave_break_duration:
@@ -311,26 +356,56 @@ class Game:
         self.wave_timer = 0
         self.enemies_spawned = 0
         self.enemies_killed = 0
+        self.boss_notification_timer = 0
         
-        # Increase difficulty
-        self.enemies_in_wave = int(10 + (self.current_wave - 1) * 3)
-        self.enemy_spawner.increase_difficulty()
+        # Calculate enemies for this wave (horde progression)
+        # More enemies each wave, with boss waves having different counts
+        self.is_boss_wave = (self.current_wave % 5 == 0) and self.current_wave >= 5
+        
+        if self.is_boss_wave:
+            # Boss waves have fewer total enemies but include powerful bosses
+            self.enemies_in_wave = max(8, int(self.base_enemies_per_wave * 0.6 + (self.current_wave - 1) * 1.5))
+        else:
+            # Regular waves scale up more aggressively for horde feel
+            self.enemies_in_wave = int(self.base_enemies_per_wave + (self.current_wave - 1) * 4)
+        
+        # Update enemy spawner for new wave
+        self.enemy_spawner.update_spawn_rate(self.current_wave)
+        self.enemy_spawner.reset_boss_flag()
+        
+        print(f"Starting Wave {self.current_wave} {'(BOSS WAVE!) ' if self.is_boss_wave else ''}with {self.enemies_in_wave} enemies")
         
     def complete_wave(self):
         old_wave = self.current_wave
         self.current_wave += 1
-        self.in_wave_break = True
-        self.wave_timer = 0
         
-        # Give score bonus
-        wave_bonus = self.current_wave * 100
+        # Check if next wave is a boss wave
+        next_is_boss_wave = (self.current_wave % 5 == 0) and self.current_wave >= 5
+        
+        if next_is_boss_wave:
+            # Start boss notification period
+            self.boss_notification_timer = self.boss_notification_duration
+            self.in_wave_break = False  # Don't go into normal wave break yet
+        else:
+            self.in_wave_break = True
+            self.wave_timer = 0
+        
+        # Give score bonus (increased for later waves)
+        base_bonus = 100
+        wave_multiplier = max(1.0, 1.0 + (old_wave - 1) * 0.2)
+        boss_multiplier = 2.0 if (old_wave % 5 == 0) and old_wave >= 5 else 1.0
+        wave_bonus = int(base_bonus * wave_multiplier * boss_multiplier)
         self.score += wave_bonus
         
-        print(f"WAVE {old_wave} COMPLETED! Starting wave break. Next wave: {self.current_wave}")
+        print(f"WAVE {old_wave} COMPLETED! Next wave: {self.current_wave}")
         print(f"Score bonus: +{wave_bonus}. Total score: {self.score}")
         
-        # Chance to spawn powerup
-        if random.random() < 0.3:  # 30% chance
+        if next_is_boss_wave:
+            print("⚠️  BOSS WAVE INCOMING! ⚠️")
+        
+        # Chance to spawn powerup (higher chance after boss waves)
+        powerup_chance = 0.5 if (old_wave % 5 == 0) and old_wave >= 5 else 0.3
+        if random.random() < powerup_chance:
             powerup = PowerUp(
                 random.randint(50, self.SCREEN_WIDTH - 50),
                 random.randint(50, self.SCREEN_HEIGHT - 50)
@@ -342,7 +417,8 @@ class Game:
     
     def check_collisions(self):
         # Projectile vs Enemy collisions
-        for projectile in self.projectiles:
+        projectiles_to_remove = []
+        for projectile in list(self.projectiles):  # Convert to list for safe iteration
             hit_enemies = pygame.sprite.spritecollide(projectile, self.enemies, False)
             enemies_hit_this_frame = []
             
@@ -414,7 +490,7 @@ class Game:
                             
                             # Check if enemy dies from explosion
                             if enemy.health <= 0:
-                                enemy_type_values = {"basic": 1, "fast": 2, "tank": 3, "boss": 5}
+                                enemy_type_values = {"basic": 1, "fast": 2, "tank": 3, "sniper": 3, "swarm": 1, "heavy": 4, "elite": 4, "boss": 5}
                                 type_multiplier = enemy_type_values.get(enemy.enemy_type, 1)
                                 xp_value = 5 + (type_multiplier * 2)
                                 xp_orb = XPOrb(enemy.rect.centerx, enemy.rect.centery, xp_value)
@@ -438,8 +514,12 @@ class Game:
             
             # Remove non-piercing projectiles that hit something
             if enemies_hit_this_frame and not projectile.piercing:
+                projectiles_to_remove.append(projectile)
+        
+        # Remove projectiles safely after iteration
+        for projectile in projectiles_to_remove:
+            if projectile in self.projectiles:
                 self.projectiles.remove(projectile)
-                break
         
         # Player vs Enemy collisions
         hit_enemies = pygame.sprite.spritecollide(self.player, self.enemies, False)  # type: ignore
@@ -552,7 +632,7 @@ class Game:
         self.ui.draw(self.screen, self.player, self.current_wave, self.score, 
                     enemies_remaining, self.in_wave_break, 
                     self.wave_timer, self.wave_break_duration, self.level_system,
-                    self.camera_x, self.camera_y)
+                    self.camera_x, self.camera_y, self.boss_notification_timer, self.is_boss_wave)
         
         # Draw world bounds indicator
         self.draw_world_bounds(total_offset_x, total_offset_y)
@@ -801,7 +881,8 @@ class Game:
                     enemy = Enemy(
                         random.randint(50, self.SCREEN_WIDTH - 50),
                         random.randint(50, self.SCREEN_HEIGHT - 50),
-                        "basic"
+                        "basic",
+                        self.current_wave
                     )
                     self.enemies.add(enemy)
                 print("Spawned 10 basic enemies")
@@ -811,7 +892,8 @@ class Game:
                     enemy = Enemy(
                         random.randint(50, self.SCREEN_WIDTH - 50),
                         random.randint(50, self.SCREEN_HEIGHT - 50),
-                        "fast"
+                        "fast",
+                        self.current_wave
                     )
                     self.enemies.add(enemy)
                 print("Spawned 5 fast enemies")
@@ -821,31 +903,76 @@ class Game:
                     enemy = Enemy(
                         random.randint(50, self.SCREEN_WIDTH - 50),
                         random.randint(50, self.SCREEN_HEIGHT - 50),
-                        "tank"
+                        "tank",
+                        self.current_wave
                     )
                     self.enemies.add(enemy)
                 print("Spawned 3 tank enemies")
+            
+            elif action_value == "spawn_swarm":
+                for i in range(5):
+                    enemy = Enemy(
+                        random.randint(50, self.SCREEN_WIDTH - 50),
+                        random.randint(50, self.SCREEN_HEIGHT - 50),
+                        "swarm",
+                        self.current_wave
+                    )
+                    self.enemies.add(enemy)
+                print("Spawned 5 swarm enemies")
+            
+            elif action_value == "spawn_sniper":
+                for i in range(2):
+                    enemy = Enemy(
+                        random.randint(50, self.SCREEN_WIDTH - 50),
+                        random.randint(50, self.SCREEN_HEIGHT - 50),
+                        "sniper",
+                        self.current_wave
+                    )
+                    self.enemies.add(enemy)
+                print("Spawned 2 sniper enemies")
+            
+            elif action_value == "spawn_heavy":
+                for i in range(2):
+                    enemy = Enemy(
+                        random.randint(50, self.SCREEN_WIDTH - 50),
+                        random.randint(50, self.SCREEN_HEIGHT - 50),
+                        "heavy",
+                        self.current_wave
+                    )
+                    self.enemies.add(enemy)
+                print("Spawned 2 heavy enemies")
+            
+            elif action_value == "spawn_elite":
+                enemy = Enemy(
+                    random.randint(50, self.SCREEN_WIDTH - 50),
+                    random.randint(50, self.SCREEN_HEIGHT - 50),
+                    "elite",
+                    self.current_wave
+                )
+                self.enemies.add(enemy)
+                print("Spawned 1 elite enemy")
             
             elif action_value == "spawn_boss":
                 enemy = Enemy(
                     self.SCREEN_WIDTH // 2,
                     self.SCREEN_HEIGHT // 2,
-                    "boss"
+                    "boss",
+                    self.current_wave
                 )
                 self.enemies.add(enemy)
                 print("Spawned 1 boss enemy")
             
             elif action_value == "spawn_mixed":
-                enemy_types = ["basic", "fast", "tank", "boss"]
+                enemy_types = ["basic", "fast", "tank", "sniper", "swarm", "heavy", "elite", "boss"]
                 for enemy_type in enemy_types:
-                    for i in range(2):
-                        enemy = Enemy(
-                            random.randint(50, self.SCREEN_WIDTH - 50),
-                            random.randint(50, self.SCREEN_HEIGHT - 50),
-                            enemy_type
-                        )
-                        self.enemies.add(enemy)
-                print("Spawned mixed enemy wave")
+                    enemy = Enemy(
+                        random.randint(50, self.SCREEN_WIDTH - 50),
+                        random.randint(50, self.SCREEN_HEIGHT - 50),
+                        enemy_type,
+                        self.current_wave
+                    )
+                    self.enemies.add(enemy)
+                print("Spawned mixed enemy wave (all types)")
             
             elif action_value == "spawn_powerup":
                 powerup = PowerUp(
@@ -895,7 +1022,7 @@ class Game:
                 # Check if enemy is dead
                 if enemy.health <= 0:
                     # Drop XP
-                    enemy_type_values = {"basic": 1, "fast": 2, "tank": 3, "boss": 5}
+                    enemy_type_values = {"basic": 1, "fast": 2, "tank": 3, "sniper": 3, "swarm": 1, "heavy": 4, "elite": 4, "boss": 5}
                     type_multiplier = enemy_type_values.get(enemy.enemy_type, 1)
                     xp_value = 5 + (type_multiplier * 2)  # Different XP per enemy type
                     xp_orb = XPOrb(enemy.rect.centerx, enemy.rect.centery, xp_value)
@@ -1030,7 +1157,7 @@ class Game:
                     # Check if enemy is dead
                     if enemy.health <= 0:
                         # Drop XP orb
-                        enemy_type_values = {"basic": 1, "fast": 2, "tank": 3, "boss": 5}
+                        enemy_type_values = {"basic": 1, "fast": 2, "tank": 3, "sniper": 3, "swarm": 1, "heavy": 4, "elite": 4, "boss": 5}
                         type_multiplier = enemy_type_values.get(enemy.enemy_type, 1)
                         xp_value = 5 + (type_multiplier * 2)
                         xp_orb = XPOrb(enemy.rect.centerx, enemy.rect.centery, xp_value)
