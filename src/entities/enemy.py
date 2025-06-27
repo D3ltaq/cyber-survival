@@ -26,14 +26,14 @@ class Enemy(pygame.sprite.Sprite):
         elif enemy_type == "tank":
             self.rect = pygame.Rect(x - 15, y - 15, 30, 30)
             self.base_health = 80
-            self.speed = 30
+            self.speed = 45  # Increased from 30 to 45
             self.damage = 25
             self.score_value = 30
             self.color = (100, 255, 100)  # Green
         elif enemy_type == "sniper":  # NEW: Long-range, slow but high damage
             self.rect = pygame.Rect(x - 12, y - 12, 24, 24)
             self.base_health = 40
-            self.speed = 25
+            self.speed = 40  # Increased from 25 to 40
             self.damage = 35
             self.score_value = 25
             self.color = (255, 165, 0)  # Orange
@@ -51,7 +51,7 @@ class Enemy(pygame.sprite.Sprite):
         elif enemy_type == "heavy":  # NEW: Very tanky, slow, high damage
             self.rect = pygame.Rect(x - 20, y - 20, 40, 40)
             self.base_health = 150
-            self.speed = 20
+            self.speed = 35  # Increased from 20 to 35
             self.damage = 40
             self.score_value = 50
             self.color = (150, 150, 255)  # Blue-ish
@@ -171,21 +171,21 @@ class Enemy(pygame.sprite.Sprite):
                 
             elif self.enemy_type == "sniper":
                 # Sniper behavior: maintain distance, stay at range
-                ideal_distance = 250
-                if distance > ideal_distance + 50:
-                    # Too far, move closer slowly
-                    self.velocity_x = dx * self.speed * 0.5
-                    self.velocity_y = dy * self.speed * 0.5
-                elif distance < ideal_distance - 50:
+                ideal_distance = 220
+                if distance > ideal_distance + 40:
+                    # Too far, move closer
+                    self.velocity_x = dx * self.speed * 0.8  # Increased from 0.5
+                    self.velocity_y = dy * self.speed * 0.8
+                elif distance < ideal_distance - 40:
                     # Too close, retreat
                     self.velocity_x = -dx * self.speed
                     self.velocity_y = -dy * self.speed
                 else:
-                    # Perfect distance, strafe
+                    # Perfect distance, strafe with some approach
                     perpendicular_x = -dy
                     perpendicular_y = dx
-                    self.velocity_x = perpendicular_x * self.speed * 0.7
-                    self.velocity_y = perpendicular_y * self.speed * 0.7
+                    self.velocity_x = (perpendicular_x * 0.8 + dx * 0.2) * self.speed
+                    self.velocity_y = (perpendicular_y * 0.8 + dy * 0.2) * self.speed
                     
             elif self.enemy_type == "swarm":
                 # Swarm behavior: fast and erratic
@@ -207,37 +207,38 @@ class Enemy(pygame.sprite.Sprite):
                 
             elif self.enemy_type == "elite":
                 # Elite behavior: smart tactical movement
-                if distance > 100:
+                if distance > 120:
                     # Chase when far
                     self.velocity_x = dx * self.speed
                     self.velocity_y = dy * self.speed
                 else:
-                    # Circle when close
-                    self.circle_angle += dt * 0.003
+                    # Circle when close - faster and more aggressive
+                    self.circle_angle += dt * 0.006  # Doubled speed
                     circle_dx = math.cos(self.circle_angle)
                     circle_dy = math.sin(self.circle_angle)
-                    self.velocity_x = (dx * 0.3 + circle_dx * 0.7) * self.speed
-                    self.velocity_y = (dy * 0.3 + circle_dy * 0.7) * self.speed
+                    self.velocity_x = (dx * 0.2 + circle_dx * 0.8) * self.speed
+                    self.velocity_y = (dy * 0.2 + circle_dy * 0.8) * self.speed
                     
             elif self.enemy_type == "boss":
                 # Complex AI: circle around player at medium distance
-                ideal_distance = 150
+                ideal_distance = 130
                 
-                if distance < ideal_distance - 20:
+                if distance < ideal_distance - 30:
                     # Too close, move away
                     self.velocity_x = -dx * self.speed
                     self.velocity_y = -dy * self.speed
-                elif distance > ideal_distance + 20:
+                elif distance > ideal_distance + 30:
                     # Too far, move closer
                     self.velocity_x = dx * self.speed
                     self.velocity_y = dy * self.speed
                 else:
-                    # Perfect distance, circle around
-                    self.circle_angle += dt * 0.002
+                    # Perfect distance, circle around - faster movement
+                    self.circle_angle += dt * 0.005  # Increased from 0.002
                     circle_dx = math.cos(self.circle_angle)
                     circle_dy = math.sin(self.circle_angle)
-                    self.velocity_x = circle_dx * self.speed
-                    self.velocity_y = circle_dy * self.speed
+                    # Mix circling with slight approach for more dynamic movement
+                    self.velocity_x = (circle_dx * 0.8 + dx * 0.2) * self.speed
+                    self.velocity_y = (circle_dy * 0.8 + dy * 0.2) * self.speed
     
     def take_damage(self, damage):
         self.health -= damage
