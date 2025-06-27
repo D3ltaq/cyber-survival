@@ -35,6 +35,13 @@ class Player(pygame.sprite.Sprite):
         self.damage_cooldown = 0
         self.damage_delay = 1000  # 1 second
         
+        # Animation properties
+        self.animation_timer = 0
+        self.walk_cycle = 0
+        self.is_moving = False
+        self.facing_direction = 0  # 0 = right, 1 = left, 2 = up, 3 = down
+        self.last_movement = (0, 0)
+        
         # Colors (New palette)
         self.BLACK = (0, 0, 0)
         self.WHITE = (255, 255, 255)
@@ -102,6 +109,9 @@ class Player(pygame.sprite.Sprite):
         self.regen_timer = max(0, self.regen_timer - dt)
         self.area_damage_timer = max(0, self.area_damage_timer - dt)
         
+        # Update animation
+        self.animation_timer += dt
+        
         # Update passive weapon timers
         self.auto_target_timer = max(0, self.auto_target_timer - dt)
         self.missile_timer = max(0, self.missile_timer - dt)
@@ -148,6 +158,20 @@ class Player(pygame.sprite.Sprite):
             dy -= 1
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy += 1
+        
+        # Update movement state and facing direction
+        self.is_moving = (dx != 0 or dy != 0)
+        if self.is_moving:
+            # Update facing direction based on movement
+            if abs(dx) > abs(dy):
+                self.facing_direction = 0 if dx > 0 else 1  # Right or Left
+            else:
+                self.facing_direction = 3 if dy > 0 else 2  # Down or Up
+            
+            # Update walk cycle
+            self.walk_cycle += dt * 0.01  # Walking animation speed
+        
+        self.last_movement = (dx, dy)
         
         # Normalize diagonal movement
         if dx != 0 and dy != 0:
@@ -252,122 +276,207 @@ class Player(pygame.sprite.Sprite):
             self._draw_power_aura(surface, center_x, center_y)
         
         if not flash:
-            # Color palette from the reference image
-            dark_gray = (40, 45, 52)
-            med_gray = (68, 76, 88)
-            light_gray = (120, 130, 140)
-            skin_tone = (200, 160, 120)
-            visor_blue = self.MINT_GREEN
-            visor_dark = (40, 100, 140)
-            accent_pink = (200, 80, 140)
-            accent_cyan = (80, 200, 200)
-            
-            # Power-up color modifications
-            if "damage" in self.powerup_timers:
-                visor_blue = self.HOT_PINK
-                accent_cyan = (255, 100, 180)
-            elif "speed" in self.powerup_timers:
-                visor_blue = self.MINT_GREEN
-                accent_cyan = (100, 255, 150)
-            
-            # Scale factor for the character (reference appears to be about 20x30 pixels)
-            scale = 1
-            
-            # Base position adjustments
-            base_x = center_x
-            base_y = center_y
-            
-            # 1. Legs (dark pants/armor)
-            # Left leg
-            pygame.draw.rect(surface, dark_gray, 
-                           pygame.Rect(base_x - 6, base_y + 3, 5, 9))
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x - 5, base_y + 4, 3, 2))
-            
-            # Right leg  
-            pygame.draw.rect(surface, dark_gray, 
-                           pygame.Rect(base_x + 1, base_y + 3, 5, 9))
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x + 2, base_y + 4, 3, 2))
-            
-            # 2. Main torso (dark armor/suit)
-            torso_main = pygame.Rect(base_x - 7, base_y - 8, 14, 15)
-            pygame.draw.rect(surface, dark_gray, torso_main)
-            
-            # Chest armor details
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x - 6, base_y - 6, 12, 3))
-            pygame.draw.rect(surface, light_gray, 
-                           pygame.Rect(base_x - 5, base_y - 5, 10, 1))
-            
-            # Side torso accents
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x - 7, base_y - 3, 2, 6))
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x + 5, base_y - 3, 2, 6))
-            
-            # 3. Arms
-            # Left arm
-            pygame.draw.rect(surface, dark_gray, 
-                           pygame.Rect(base_x - 10, base_y - 5, 4, 10))
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x - 9, base_y - 4, 2, 3))
-            
-            # Right arm (with cyan accent - energy weapon/tool)
-            pygame.draw.rect(surface, dark_gray, 
-                           pygame.Rect(base_x + 6, base_y - 5, 4, 10))
-            pygame.draw.rect(surface, accent_cyan, 
-                           pygame.Rect(base_x + 7, base_y - 2, 2, 4))
-            
-            # 4. Head/Helmet
-            # Main helmet shape
-            helmet_rect = pygame.Rect(base_x - 6, base_y - 15, 12, 10)
-            pygame.draw.rect(surface, dark_gray, helmet_rect)
-            
-            # Helmet top/crown
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x - 5, base_y - 14, 10, 2))
-            
-            # Face/skin area
-            pygame.draw.rect(surface, skin_tone, 
-                           pygame.Rect(base_x - 3, base_y - 10, 6, 4))
-            
-            # Visor/eye area
-            pygame.draw.rect(surface, visor_dark, 
-                           pygame.Rect(base_x - 4, base_y - 12, 8, 3))
-            pygame.draw.rect(surface, visor_blue, 
-                           pygame.Rect(base_x - 3, base_y - 11, 6, 1))
-            
-            # Helmet side details
-            pygame.draw.rect(surface, light_gray, 
-                           pygame.Rect(base_x - 6, base_y - 12, 1, 4))
-            pygame.draw.rect(surface, light_gray, 
-                           pygame.Rect(base_x + 5, base_y - 12, 1, 4))
-            
-            # Small accent details
-            if "damage" in self.powerup_timers:
-                pygame.draw.rect(surface, accent_pink, 
-                               pygame.Rect(base_x + 6, base_y - 8, 1, 2))
-            
-            # 5. Additional cybernetic details
-            # Shoulder pads/armor
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x - 8, base_y - 7, 2, 3))
-            pygame.draw.rect(surface, med_gray, 
-                           pygame.Rect(base_x + 6, base_y - 7, 2, 3))
-            
-            # Belt/waist detail
-            pygame.draw.rect(surface, light_gray, 
-                           pygame.Rect(base_x - 5, base_y + 1, 10, 1))
-            
-            # Power indicators when powered up
-            if "speed" in self.powerup_timers or "damage" in self.powerup_timers:
-                # Glowing elements
-                pygame.draw.rect(surface, accent_cyan, 
-                               pygame.Rect(base_x - 1, base_y - 2, 2, 1))
-                pygame.draw.rect(surface, accent_cyan, 
-                               pygame.Rect(base_x - 1, base_y + 8, 2, 2))
+            self._draw_detailed_player(surface, center_x, center_y)
     
+    def _draw_detailed_player(self, surface, center_x, center_y):
+        """Draw detailed animated cyberpunk player character"""
+        # Scale factor to make character bigger
+        scale = 1.5
+        
+
+        # Color palette - more sophisticated cyberpunk colors
+        base_armor = (25, 30, 40)
+        armor_highlight = (45, 55, 70)
+        armor_detail = (80, 90, 110)
+        energy_core = (0, 255, 200)
+        visor_glow = (100, 200, 255)
+        skin_tone = (220, 180, 140)
+        metal_accent = (150, 160, 180)
+        warning_red = (255, 80, 80)
+        
+        # Power-up color modifications
+        if "damage" in self.powerup_timers:
+            energy_core = (255, 100, 150)
+            visor_glow = (255, 150, 200)
+        elif "speed" in self.powerup_timers:
+            energy_core = (150, 255, 100)
+            visor_glow = (200, 255, 150)
+        
+        # Animation offsets (scaled)
+        walk_offset = 0
+        bob_offset = 0
+        if self.is_moving:
+            walk_offset = int(math.sin(self.walk_cycle) * 3 * scale)
+            bob_offset = int(math.sin(self.walk_cycle * 2) * 1.5 * scale)
+        
+        # Breathing animation when idle
+        if not self.is_moving:
+            bob_offset = int(math.sin(self.animation_timer * 0.003) * 0.8 * scale)
+        
+        # Base position with animation
+        base_x = center_x
+        base_y = center_y + bob_offset
+        
+        # 1. Shadow/base (scaled)
+        shadow_width = int(16 * scale)
+        shadow_height = int(3 * scale)
+        shadow_rect = pygame.Rect(base_x - shadow_width//2, base_y + int(12 * scale), shadow_width, shadow_height)
+        pygame.draw.ellipse(surface, (0, 0, 0, 100), shadow_rect)
+        
+        # 2. Legs with walking animation (scaled)
+        leg_offset = walk_offset if self.is_moving else 0
+        leg_width = int(4 * scale)
+        leg_height = int(10 * scale)
+        
+        # Left leg
+        left_leg_x = base_x - int(4 * scale) + (leg_offset if self.facing_direction == 0 else -leg_offset)
+        pygame.draw.rect(surface, base_armor, 
+                        pygame.Rect(left_leg_x - leg_width//2, base_y + int(4 * scale), leg_width, leg_height))
+        pygame.draw.rect(surface, armor_highlight, 
+                        pygame.Rect(left_leg_x - int(1 * scale), base_y + int(5 * scale), int(2 * scale), int(3 * scale)))
+        pygame.draw.rect(surface, energy_core, 
+                        pygame.Rect(left_leg_x, base_y + int(7 * scale), int(1 * scale), int(1 * scale)))
+        
+        # Right leg
+        right_leg_x = base_x + int(4 * scale) + (-leg_offset if self.facing_direction == 0 else leg_offset)
+        pygame.draw.rect(surface, base_armor, 
+                        pygame.Rect(right_leg_x - leg_width//2, base_y + int(4 * scale), leg_width, leg_height))
+        pygame.draw.rect(surface, armor_highlight, 
+                        pygame.Rect(right_leg_x - int(1 * scale), base_y + int(5 * scale), int(2 * scale), int(3 * scale)))
+        pygame.draw.rect(surface, energy_core, 
+                        pygame.Rect(right_leg_x, base_y + int(7 * scale), int(1 * scale), int(1 * scale)))
+        
+        # 3. Main torso - more detailed (scaled)
+        # Core body
+        torso_width = int(12 * scale)
+        torso_height = int(12 * scale)
+        torso_rect = pygame.Rect(base_x - torso_width//2, base_y - int(6 * scale), torso_width, torso_height)
+        pygame.draw.rect(surface, base_armor, torso_rect)
+        
+        # Chest plate with energy core
+        chest_width = int(10 * scale)
+        chest_height = int(6 * scale)
+        chest_rect = pygame.Rect(base_x - chest_width//2, base_y - int(5 * scale), chest_width, chest_height)
+        pygame.draw.rect(surface, armor_highlight, chest_rect)
+        
+        # Energy core in chest - pulsing
+        core_intensity = int(128 + 127 * math.sin(self.animation_timer * 0.01))
+        core_radius = int(2 * scale)
+        inner_core_radius = int(1 * scale)
+        pygame.draw.circle(surface, energy_core, (base_x, base_y - int(2 * scale)), core_radius)
+        pygame.draw.circle(surface, (255, 255, 255), (base_x, base_y - int(2 * scale)), inner_core_radius)
+        
+        # Side armor panels
+        panel_width = int(2 * scale)
+        panel_height = int(4 * scale)
+        pygame.draw.rect(surface, armor_detail, 
+                        pygame.Rect(base_x - int(6 * scale), base_y - int(2 * scale), panel_width, panel_height))
+        pygame.draw.rect(surface, armor_detail, 
+                        pygame.Rect(base_x + int(4 * scale), base_y - int(2 * scale), panel_width, panel_height))
+        
+        # 4. Arms with weapon positioning (scaled)
+        arm_angle = 0
+        if self.is_moving and self.facing_direction in [0, 1]:  # Moving horizontally
+            arm_angle = math.sin(self.walk_cycle * 1.5) * 0.3
+        
+        # Left arm
+        arm_width = int(3 * scale)
+        arm_height = int(8 * scale)
+        left_arm_x = base_x - int(8 * scale) + int(math.sin(arm_angle) * 2 * scale)
+        left_arm_y = base_y - int(3 * scale) + int(math.cos(arm_angle) * 1 * scale)
+        pygame.draw.rect(surface, base_armor, 
+                        pygame.Rect(left_arm_x, left_arm_y, arm_width, arm_height))
+        pygame.draw.rect(surface, armor_highlight, 
+                        pygame.Rect(left_arm_x, left_arm_y, int(2 * scale), int(3 * scale)))
+        
+        # Right arm (weapon arm)
+        right_arm_x = base_x + int(5 * scale) - int(math.sin(arm_angle) * 2 * scale)
+        right_arm_y = base_y - int(3 * scale) - int(math.cos(arm_angle) * 1 * scale)
+        pygame.draw.rect(surface, base_armor, 
+                        pygame.Rect(right_arm_x, right_arm_y, arm_width, arm_height))
+        pygame.draw.rect(surface, armor_highlight, 
+                        pygame.Rect(right_arm_x + int(1 * scale), right_arm_y, int(2 * scale), int(3 * scale)))
+        
+        # Weapon mount on right arm
+        pygame.draw.rect(surface, metal_accent, 
+                        pygame.Rect(right_arm_x + int(1 * scale), right_arm_y + int(2 * scale), int(2 * scale), int(3 * scale)))
+        pygame.draw.rect(surface, energy_core, 
+                        pygame.Rect(right_arm_x + int(1 * scale), right_arm_y + int(3 * scale), int(1 * scale), int(1 * scale)))
+        
+        # 5. Head/Helmet - more detailed (scaled)
+        # Main helmet
+        helmet_width = int(10 * scale)
+        helmet_height = int(8 * scale)
+        helmet_rect = pygame.Rect(base_x - helmet_width//2, base_y - int(12 * scale), helmet_width, helmet_height)
+        pygame.draw.rect(surface, base_armor, helmet_rect)
+        
+        # Helmet ridge
+        ridge_width = int(8 * scale)
+        ridge_height = int(2 * scale)
+        pygame.draw.rect(surface, armor_highlight, 
+                        pygame.Rect(base_x - ridge_width//2, base_y - int(11 * scale), ridge_width, ridge_height))
+        
+        # Visor - animated glow
+        visor_width = int(8 * scale)
+        visor_height = int(3 * scale)
+        visor_rect = pygame.Rect(base_x - visor_width//2, base_y - int(10 * scale), visor_width, visor_height)
+        pygame.draw.rect(surface, (20, 40, 60), visor_rect)
+        
+        # Visor glow effect
+        glow_intensity = int(100 + 50 * math.sin(self.animation_timer * 0.005))
+        glow_width = int(6 * scale)
+        glow_height = int(1 * scale)
+        pygame.draw.rect(surface, visor_glow, 
+                        pygame.Rect(base_x - glow_width//2, base_y - int(9 * scale), glow_width, glow_height))
+        
+        # Helmet details
+        detail_width = int(1 * scale)
+        detail_height = int(3 * scale)
+        pygame.draw.rect(surface, metal_accent, 
+                        pygame.Rect(base_x - int(5 * scale), base_y - int(8 * scale), detail_width, detail_height))
+        pygame.draw.rect(surface, metal_accent, 
+                        pygame.Rect(base_x + int(4 * scale), base_y - int(8 * scale), detail_width, detail_height))
+        
+        # Antenna/sensors
+        antenna_width = int(1 * scale)
+        antenna_height = int(2 * scale)
+        pygame.draw.rect(surface, energy_core, 
+                        pygame.Rect(base_x - antenna_width//2, base_y - int(13 * scale), antenna_width, antenna_height))
+        pygame.draw.rect(surface, energy_core, 
+                        pygame.Rect(base_x + antenna_width, base_y - int(13 * scale), antenna_width, antenna_height))
+        
+        # 6. Additional details based on powerups (scaled)
+        if "damage" in self.powerup_timers:
+            # Damage boost indicators
+            indicator_radius = int(1 * scale)
+            pygame.draw.circle(surface, warning_red, (base_x - int(4 * scale), base_y - int(4 * scale)), indicator_radius)
+            pygame.draw.circle(surface, warning_red, (base_x + int(4 * scale), base_y - int(4 * scale)), indicator_radius)
+            
+        if "speed" in self.powerup_timers:
+            # Speed boost trails
+            trail_alpha = int(100 * math.sin(self.animation_timer * 0.02))
+            if trail_alpha > 0:
+                # Create temporary surface for alpha blending
+                trail_size = int(4 * scale)
+                trail_radius = int(1 * scale)
+                trail_surf = pygame.Surface((trail_size, trail_size))
+                trail_surf.set_alpha(trail_alpha)
+                pygame.draw.circle(trail_surf, energy_core, (trail_size//2, trail_size//2), trail_radius)
+                surface.blit(trail_surf, (base_x - int(4 * scale), base_y))
+                surface.blit(trail_surf, (base_x + int(2 * scale), base_y))
+        
+        # 7. Health indicator (scaled)
+        if self.health < self.max_health * 0.3:  # Low health warning
+            warning_alpha = int(150 * math.sin(self.animation_timer * 0.02))
+            if warning_alpha > 0:
+                # Create temporary surface for alpha blending
+                warning_width = int(12 * scale)
+                warning_height = int(14 * scale)
+                warning_surf = pygame.Surface((warning_width, warning_height))
+                warning_surf.set_alpha(warning_alpha)
+                pygame.draw.rect(warning_surf, warning_red, pygame.Rect(0, 0, warning_width, warning_height))
+                surface.blit(warning_surf, (base_x - warning_width//2, base_y - int(12 * scale)))
+
     def _draw_shield_effect(self, surface, center_x, center_y):
         """Draw shield visual effect around player"""
         import time
