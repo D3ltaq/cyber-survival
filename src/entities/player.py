@@ -163,7 +163,7 @@ class Player(pygame.sprite.Sprite):
         # Keep player on screen
         self.rect.clamp_ip(pygame.Rect(0, 0, screen_width, screen_height))
     
-    def shoot(self):
+    def shoot(self, camera_x=0.0, camera_y=0.0):
         # Get weapon-specific fire rate multiplier
         fire_rate_multiplier = self.weapon_system.get_fire_rate_multiplier(self.current_weapon)
         actual_shoot_delay = self.shoot_delay * self.shoot_delay_multiplier * fire_rate_multiplier
@@ -172,9 +172,13 @@ class Player(pygame.sprite.Sprite):
             # Get mouse position for direction
             mouse_x, mouse_y = pygame.mouse.get_pos()
             
-            # Calculate angle to mouse
-            dx = mouse_x - self.rect.centerx
-            dy = mouse_y - self.rect.centery
+            # Convert mouse coordinates to world coordinates
+            world_mouse_x = mouse_x + camera_x
+            world_mouse_y = mouse_y + camera_y
+            
+            # Calculate angle to mouse in world space
+            dx = world_mouse_x - self.rect.centerx
+            dy = world_mouse_y - self.rect.centery
             angle = math.atan2(dy, dx)
             
             # Calculate base damage

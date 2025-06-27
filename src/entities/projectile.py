@@ -99,27 +99,29 @@ class Projectile(pygame.sprite.Sprite):
             self.rect.x = -1000
             self.rect.y = -1000
     
-    def draw(self, surface):
+    def draw(self, surface, custom_center=None):
+        # Use custom center if provided, otherwise use rect center
+        center = custom_center if custom_center else self.rect.center
+        
         # Weapon-specific drawing
         if self.weapon_type == "laser_rifle":
-            self._draw_laser_projectile(surface)
+            self._draw_laser_projectile(surface, center)
         elif self.weapon_type == "plasma_cannon":
-            self._draw_plasma_projectile(surface)
+            self._draw_plasma_projectile(surface, center)
         elif self.weapon_type == "shotgun":
-            self._draw_shotgun_projectile(surface)
+            self._draw_shotgun_projectile(surface, center)
         elif self.weapon_type == "sniper_rifle":
-            self._draw_sniper_projectile(surface)
+            self._draw_sniper_projectile(surface, center)
         elif self.weapon_type == "machine_gun":
-            self._draw_machine_gun_projectile(surface)
+            self._draw_machine_gun_projectile(surface, center)
         elif self.weapon_type == "energy_beam":
-            self._draw_energy_beam_projectile(surface)
+            self._draw_energy_beam_projectile(surface, center)
         else:
-            self._draw_default_projectile(surface)
+            self._draw_default_projectile(surface, center)
     
-    def _draw_laser_projectile(self, surface):
+    def _draw_laser_projectile(self, surface, center):
         """Draw a bright, fast laser beam"""
         # Long thin laser with bright core
-        center = self.rect.center
         length = 15
         width = 2
         
@@ -136,9 +138,8 @@ class Projectile(pygame.sprite.Sprite):
         # Core
         pygame.draw.line(surface, (255, 255, 255), (back_x, back_y), (front_x, front_y), 1)
     
-    def _draw_plasma_projectile(self, surface):
+    def _draw_plasma_projectile(self, surface, center):
         """Draw a large, pulsating plasma ball"""
-        center = self.rect.center
         base_size = self.size
         current_size = int(base_size * self.pulse_scale)
         
@@ -152,18 +153,15 @@ class Projectile(pygame.sprite.Sprite):
         # Center spark
         pygame.draw.circle(surface, (255, 255, 255), center, max(1, current_size // 4))
     
-    def _draw_shotgun_projectile(self, surface):
+    def _draw_shotgun_projectile(self, surface, center):
         """Draw small, fast pellets"""
-        center = self.rect.center
-        
         # Small bright pellet
         pygame.draw.circle(surface, (255, 50, 150), center, self.size)
         pygame.draw.circle(surface, self.color, center, self.size - 1)
         pygame.draw.circle(surface, (255, 255, 255), center, max(1, self.size - 2))
     
-    def _draw_sniper_projectile(self, surface):
+    def _draw_sniper_projectile(self, surface, center):
         """Draw a precise, long-range bullet"""
-        center = self.rect.center
         length = 20
         width = 1
         
@@ -180,9 +178,8 @@ class Projectile(pygame.sprite.Sprite):
         # Bright tip
         pygame.draw.circle(surface, (255, 255, 255), (int(front_x), int(front_y)), 2)
     
-    def _draw_machine_gun_projectile(self, surface):
+    def _draw_machine_gun_projectile(self, surface, center):
         """Draw rapid-fire bullets"""
-        center = self.rect.center
         length = 8
         
         # Calculate end points
@@ -195,17 +192,15 @@ class Projectile(pygame.sprite.Sprite):
         pygame.draw.line(surface, self.color, (back_x, back_y), (front_x, front_y), 3)
         pygame.draw.line(surface, (255, 200, 100), (back_x, back_y), (front_x, front_y), 1)
     
-    def _draw_energy_beam_projectile(self, surface):
+    def _draw_energy_beam_projectile(self, surface, center):
         """Draw continuous energy beam segments"""
-        center = self.rect.center
-        
         # Pulsating energy ball
         size = int(self.size * self.pulse_scale)
         pygame.draw.circle(surface, (100, 255, 100), center, size + 2)
         pygame.draw.circle(surface, self.color, center, size)
         pygame.draw.circle(surface, (255, 255, 255), center, max(1, size // 2))
     
-    def _draw_default_projectile(self, surface):
+    def _draw_default_projectile(self, surface, center):
         """Draw the original default projectile style"""
         # Draw trail
         for i, pos in enumerate(self.trail_positions):
@@ -219,8 +214,6 @@ class Projectile(pygame.sprite.Sprite):
             pygame.draw.circle(surface, trail_color, pos, trail_size)
         
         # Draw main projectile as energy bolt
-        center = self.rect.center
-        
         # Scale projectile length based on size
         proj_length = max(6, self.size + 2)
         half_length = proj_length // 2

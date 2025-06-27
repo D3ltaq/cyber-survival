@@ -31,7 +31,7 @@ class UI:
             self.font_medium = pygame.font.SysFont("arial", 36)
             self.font_small = pygame.font.SysFont("arial", 24)
     
-    def draw(self, surface, player, wave, score, enemies_remaining, in_wave_break, wave_timer, wave_break_duration, level_system=None):
+    def draw(self, surface, player, wave, score, enemies_remaining, in_wave_break, wave_timer, wave_break_duration, level_system=None, camera_x=0.0, camera_y=0.0):
         # Draw health bar
         self.draw_health_bar(surface, player)
         
@@ -47,6 +47,9 @@ class UI:
         
         # Draw power-up indicators
         self.draw_powerup_indicators(surface, player)
+        
+        # Draw camera position (for debugging)
+        self.draw_camera_info(surface, camera_x, camera_y, player)
         
         # Draw controls hint
         self.draw_controls(surface)
@@ -260,4 +263,28 @@ class UI:
         # XP text
         xp_text = f"XP: {level_system.xp}/{level_system.xp_to_next_level}"
         xp_surface = self.font_small.render(xp_text, True, self.WHITE)
-        surface.blit(xp_surface, (bar_x, bar_y + bar_height + 3)) 
+        surface.blit(xp_surface, (bar_x, bar_y + bar_height + 3))
+    
+    def draw_camera_info(self, surface, camera_x, camera_y, player):
+        # Position in bottom right
+        x = self.screen_width - 20
+        y = self.screen_height - 120
+        
+        # Camera position text
+        camera_text = f"CAMERA: ({camera_x:.0f}, {camera_y:.0f})"
+        camera_surface = self.font_small.render(camera_text, True, self.WHITE)
+        camera_rect = camera_surface.get_rect(bottomright=(x, y))
+        
+        # Player position text
+        player_text = f"PLAYER: ({player.rect.centerx:.0f}, {player.rect.centery:.0f})"
+        player_surface = self.font_small.render(player_text, True, self.CYAN)
+        player_rect = player_surface.get_rect(bottomright=(x, y + 20))
+        
+        # Background for both
+        combined_rect = camera_rect.union(player_rect)
+        bg_rect = combined_rect.inflate(10, 5)
+        pygame.draw.rect(surface, self.BLACK, bg_rect)
+        pygame.draw.rect(surface, self.WHITE, bg_rect, 2)
+        
+        surface.blit(camera_surface, camera_rect)
+        surface.blit(player_surface, player_rect) 

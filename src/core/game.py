@@ -32,6 +32,7 @@ if not hasattr(pygame, 'QUIT'):
     pygame.K_d = 100
     pygame.K_r = 114
     pygame.K_c = 99
+    pygame.SRCALPHA = 65536
 
 class Game:
     def __init__(self):
@@ -40,6 +41,15 @@ class Game:
         self.SCREEN_HEIGHT = 800
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
         pygame.display.set_caption("Cyber Survival")
+        
+        # World settings (larger than screen)
+        self.WORLD_WIDTH = 4800   # 4x screen width
+        self.WORLD_HEIGHT = 3200  # 4x screen height
+        
+        # Camera system
+        self.camera_x = 0
+        self.camera_y = 0
+        self.camera_smooth = 0.15  # Camera smoothing factor (increased for more responsiveness)
         
         # Game settings
         self.clock = pygame.time.Clock()
@@ -63,12 +73,12 @@ class Game:
         self.DARK_PURPLE = (44, 26, 89)     # Dark background purple
         
         # Game objects
-        self.player = Player(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2)
+        self.player = Player(self.WORLD_WIDTH // 2, self.WORLD_HEIGHT // 2)
         self.enemies = pygame.sprite.Group()
         self.projectiles = pygame.sprite.Group()
         self.powerups = pygame.sprite.Group()
         self.xp_orbs = []
-        self.enemy_spawner = EnemySpawner(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+        self.enemy_spawner = EnemySpawner(self.WORLD_WIDTH, self.WORLD_HEIGHT)
         
         # Game systems
         self.particle_system = ParticleSystem()
@@ -169,11 +179,14 @@ class Game:
     def update_game_logic(self, dt):
         # Update player
         keys = pygame.key.get_pressed()
-        self.player.update(keys, dt, self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+        self.player.update(keys, dt, self.WORLD_WIDTH, self.WORLD_HEIGHT)
+        
+        # Update camera to follow player
+        self.update_camera()
         
         # Handle player shooting
         if keys[pygame.K_SPACE] or pygame.mouse.get_pressed()[0]:
-            new_projectiles = self.player.shoot()
+            new_projectiles = self.player.shoot(self.camera_x, self.camera_y)
             for projectile in new_projectiles:
                 self.projectiles.add(projectile)
             if new_projectiles:
@@ -205,9 +218,10 @@ class Game:
         # Update projectiles
         for projectile in self.projectiles:
             projectile.update(dt)
-            # Remove projectiles that are off-screen
-            if (projectile.rect.x < -50 or projectile.rect.x > self.SCREEN_WIDTH + 50 or
-                projectile.rect.y < -50 or projectile.rect.y > self.SCREEN_HEIGHT + 50):
+            # Remove projectiles that are off-world bounds (with buffer)
+            buffer = 100
+            if (projectile.rect.x < -buffer or projectile.rect.x > self.WORLD_WIDTH + buffer or
+                projectile.rect.y < -buffer or projectile.rect.y > self.WORLD_HEIGHT + buffer):
                 self.projectiles.remove(projectile)
         
         # Update powerups
@@ -265,6 +279,20 @@ class Game:
         if self.player.health <= 0:
             self.game_state = "game_over"
             self.sound_manager.play_sound("game_over")
+    
+    def update_camera(self):
+        """Update camera position to follow player smoothly"""
+        # Target camera position (center player on screen)
+        target_x = self.player.rect.centerx - self.SCREEN_WIDTH // 2
+        target_y = self.player.rect.centery - self.SCREEN_HEIGHT // 2
+        
+        # Keep camera within world bounds
+        target_x = max(0, min(target_x, self.WORLD_WIDTH - self.SCREEN_WIDTH))
+        target_y = max(0, min(target_y, self.WORLD_HEIGHT - self.SCREEN_HEIGHT))
+        
+        # Smooth camera movement
+        self.camera_x += (target_x - self.camera_x) * self.camera_smooth
+        self.camera_y += (target_y - self.camera_y) * self.camera_smooth
     
     def update_wave_system(self, dt):
         if self.in_wave_break:
@@ -440,50 +468,94 @@ class Game:
         # Clear screen with dark background
         self.screen.fill(self.DARK_PURPLE)
         
-        # Draw grid background (cyberpunk style)
-        self.draw_grid()
+        # Draw grid background (cyberpunk style) - larger world grid
+        self.draw_world_grid()
         
-        # Apply camera shake offset
-        offset_x = self.shake_offset_x
-        offset_y = self.shake_offset_y
+        # Calculate total offset (camera + shake)
+        total_offset_x = -self.camera_x + self.shake_offset_x
+        total_offset_y = -self.camera_y + self.shake_offset_y
         
-        # Draw game objects with offset
-        temp_surface = pygame.Surface((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        temp_surface.fill(self.DARK_PURPLE)
-        
-        # Draw enemies
+        # Draw enemies with camera offset
         for enemy in self.enemies:
-            enemy.draw(temp_surface)
+            screen_x = enemy.rect.x + total_offset_x
+            screen_y = enemy.rect.y + total_offset_y
+            # Only draw if on screen (with buffer)
+            if (-50 < screen_x < self.SCREEN_WIDTH + 50 and 
+                -50 < screen_y < self.SCREEN_HEIGHT + 50):
+                # Create temporary rect for drawing
+                temp_rect = pygame.Rect(screen_x, screen_y, enemy.rect.width, enemy.rect.height)
+                original_rect = enemy.rect
+                enemy.rect = temp_rect
+                enemy.draw(self.screen)
+                enemy.rect = original_rect
         
-        # Draw projectiles
+        # Draw projectiles with camera offset
         for projectile in self.projectiles:
-            projectile.draw(temp_surface)
+            screen_x = projectile.rect.x + total_offset_x
+            screen_y = projectile.rect.y + total_offset_y
+            # Only draw if on screen (with buffer)
+            if (-50 < screen_x < self.SCREEN_WIDTH + 50 and 
+                -50 < screen_y < self.SCREEN_HEIGHT + 50):
+                # Calculate screen center position
+                screen_center_x = projectile.rect.centerx + total_offset_x
+                screen_center_y = projectile.rect.centery + total_offset_y
+                projectile.draw(self.screen, (screen_center_x, screen_center_y))
         
-        # Draw powerups
+        # Draw powerups with camera offset
         for powerup in self.powerups:
-            powerup.draw(temp_surface)
+            screen_x = powerup.rect.x + total_offset_x
+            screen_y = powerup.rect.y + total_offset_y
+            if (-50 < screen_x < self.SCREEN_WIDTH + 50 and 
+                -50 < screen_y < self.SCREEN_HEIGHT + 50):
+                temp_rect = pygame.Rect(screen_x, screen_y, powerup.rect.width, powerup.rect.height)
+                original_rect = powerup.rect
+                powerup.rect = temp_rect
+                powerup.draw(self.screen)
+                powerup.rect = original_rect
         
-        # Draw XP orbs
+        # Draw XP orbs with camera offset
         for orb in self.xp_orbs:
-            orb.draw(temp_surface)
+            orb_rect = orb.get_rect()
+            screen_x = orb_rect.x + total_offset_x
+            screen_y = orb_rect.y + total_offset_y
+            if (-50 < screen_x < self.SCREEN_WIDTH + 50 and 
+                -50 < screen_y < self.SCREEN_HEIGHT + 50):
+                # Temporarily modify orb position for drawing
+                original_x, original_y = orb.x, orb.y
+                orb.x = orb.x + total_offset_x
+                orb.y = orb.y + total_offset_y
+                orb.draw(self.screen)
+                orb.x, orb.y = original_x, original_y
         
-        # Draw player
-        self.player.draw(temp_surface)
+        # Draw player with camera offset
+        player_screen_x = self.player.rect.x + total_offset_x
+        player_screen_y = self.player.rect.y + total_offset_y
+        temp_rect = pygame.Rect(player_screen_x, player_screen_y, self.player.rect.width, self.player.rect.height)
+        original_rect = self.player.rect
+        self.player.rect = temp_rect
+        self.player.draw(self.screen)
+        # Draw passive weapons with modified player position
+        self.player.draw_passive_weapons(self.screen)
+        self.player.rect = original_rect
         
-        # Draw passive weapon effects
-        self.player.draw_passive_weapons(temp_surface)
+        # Draw particles with camera offset
+        for particle in self.particle_system.particles:
+            # Temporarily modify particle position for drawing
+            original_x, original_y = particle.x, particle.y
+            particle.x = particle.x + total_offset_x
+            particle.y = particle.y + total_offset_y
+            particle.draw(self.screen)
+            particle.x, particle.y = original_x, original_y
         
-        # Draw particles
-        self.particle_system.draw(temp_surface)
-        
-        # Apply the offset and blit to main screen
-        self.screen.blit(temp_surface, (offset_x, offset_y))
-        
-        # Draw UI (not affected by camera shake)
+        # Draw UI (not affected by camera)
         enemies_remaining = len(self.enemies)
         self.ui.draw(self.screen, self.player, self.current_wave, self.score, 
                     enemies_remaining, self.in_wave_break, 
-                    self.wave_timer, self.wave_break_duration, self.level_system)
+                    self.wave_timer, self.wave_break_duration, self.level_system,
+                    self.camera_x, self.camera_y)
+        
+        # Draw world bounds indicator
+        self.draw_world_bounds(total_offset_x, total_offset_y)
         
         # Draw game state overlays
         if self.game_state == "main_menu":
@@ -499,14 +571,56 @@ class Game:
         elif self.game_state == "cheat_menu":
             self.cheat_menu.draw(self.screen)
     
-    def draw_grid(self):
-        grid_size = 50
-        for x in range(0, self.SCREEN_WIDTH, grid_size):
-            pygame.draw.line(self.screen, (self.CYAN[0]//4, self.CYAN[1]//4, self.CYAN[2]//4), 
-                           (x, 0), (x, self.SCREEN_HEIGHT), 1)
-        for y in range(0, self.SCREEN_HEIGHT, grid_size):
-            pygame.draw.line(self.screen, (self.CYAN[0]//4, self.CYAN[1]//4, self.CYAN[2]//4), 
-                           (0, y), (self.SCREEN_WIDTH, y), 1)
+    def draw_world_grid(self):
+        """Draw a grid that shows the world coordinates"""
+        grid_size = 100  # Larger grid for better visibility
+        grid_color = (self.CYAN[0]//6, self.CYAN[1]//6, self.CYAN[2]//6)  # Dimmer grid
+        
+        # Calculate grid offset based on camera position
+        offset_x = int(self.camera_x) % grid_size
+        offset_y = int(self.camera_y) % grid_size
+        
+        # Draw vertical lines
+        for x in range(-offset_x, self.SCREEN_WIDTH + grid_size, grid_size):
+            if 0 <= x <= self.SCREEN_WIDTH:
+                pygame.draw.line(self.screen, grid_color, (x, 0), (x, self.SCREEN_HEIGHT), 1)
+        
+        # Draw horizontal lines  
+        for y in range(-offset_y, self.SCREEN_HEIGHT + grid_size, grid_size):
+            if 0 <= y <= self.SCREEN_HEIGHT:
+                pygame.draw.line(self.screen, grid_color, (0, y), (self.SCREEN_WIDTH, y), 1)
+    
+    def draw_world_bounds(self, offset_x, offset_y):
+        """Draw indicators showing the world boundaries"""
+        border_color = self.HOT_PINK
+        border_width = 3
+        
+        # Calculate world bounds on screen
+        world_left = 0 + offset_x
+        world_right = self.WORLD_WIDTH + offset_x
+        world_top = 0 + offset_y
+        world_bottom = self.WORLD_HEIGHT + offset_y
+        
+        # Draw world boundary lines if they're visible on screen
+        if -border_width <= world_left <= self.SCREEN_WIDTH + border_width:
+            pygame.draw.line(self.screen, border_color, 
+                           (world_left, max(0, world_top)), 
+                           (world_left, min(self.SCREEN_HEIGHT, world_bottom)), border_width)
+        
+        if -border_width <= world_right <= self.SCREEN_WIDTH + border_width:
+            pygame.draw.line(self.screen, border_color,
+                           (world_right, max(0, world_top)), 
+                           (world_right, min(self.SCREEN_HEIGHT, world_bottom)), border_width)
+        
+        if -border_width <= world_top <= self.SCREEN_HEIGHT + border_width:
+            pygame.draw.line(self.screen, border_color,
+                           (max(0, world_left), world_top), 
+                           (min(self.SCREEN_WIDTH, world_right), world_top), border_width)
+        
+        if -border_width <= world_bottom <= self.SCREEN_HEIGHT + border_width:
+            pygame.draw.line(self.screen, border_color,
+                           (max(0, world_left), world_bottom), 
+                           (min(self.SCREEN_WIDTH, world_right), world_bottom), border_width)
     
     def draw_pause_screen(self):
         # Dark overlay
