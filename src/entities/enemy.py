@@ -249,6 +249,10 @@ class Enemy(pygame.sprite.Sprite):
     def draw(self, surface):
         center_x, center_y = self.rect.center
         
+        # Draw enemy glow/aura for higher waves or special types
+        if self.wave >= 5 or self.enemy_type in ["boss", "elite"]:
+            self._draw_elite_aura(surface, center_x, center_y)
+        
         # Determine color based on type and damage flash
         draw_color = self.color
         if self.damage_flash > 0:
@@ -275,6 +279,35 @@ class Enemy(pygame.sprite.Sprite):
         # Draw health bar for damaged enemies
         if self.health < self.max_health:
             self.draw_health_bar(surface)
+    
+    def _draw_elite_aura(self, surface, center_x, center_y):
+        """Draw aura for high-wave enemies or special types"""
+        import time
+        current_time = time.time() * 1000
+        
+        # Aura intensity based on wave and type
+        if self.enemy_type == "boss":
+            wave_factor = 1.0
+            aura_color = (255, 100, 255)  # Magenta for bosses
+        elif self.enemy_type == "elite":
+            wave_factor = 0.8
+            aura_color = (255, 200, 100)  # Gold for elite
+        else:
+            wave_factor = min(1.0, (self.wave - 5) / 10)  # Stronger aura for higher waves
+            aura_color = (255, 150, 150)  # Red for high-wave enemies
+        
+        pulse = math.sin(current_time * 0.01) * 0.3 + 0.7
+        
+        # Draw aura rings
+        for ring in range(2):
+            radius = self.rect.width // 2 + 5 + ring * 3
+            aura_alpha = int(40 * wave_factor * pulse)
+            
+            # Create aura surface
+            aura_surf = pygame.Surface((radius * 2, radius * 2))
+            aura_surf.set_alpha(aura_alpha)
+            pygame.draw.circle(aura_surf, aura_color, (radius, radius), radius, 2)
+            surface.blit(aura_surf, (center_x - radius, center_y - radius))
     
     def draw_basic_enemy(self, surface, center_x, center_y, color):
         # Basic cyborg drone

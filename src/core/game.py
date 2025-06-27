@@ -72,6 +72,13 @@ class Game:
         self.CORAL = (255, 134, 178)        # Coral/salmon
         self.DARK_PURPLE = (44, 26, 89)     # Dark background purple
         
+        # Visual enhancement variables
+        self.background_animation_timer = 0
+        self.grid_pulse_timer = 0
+        self.screen_flash_timer = 0
+        self.screen_flash_color = self.WHITE
+        self.screen_distortion = 0
+        
         # Game objects
         self.player = Player(self.WORLD_WIDTH // 2, self.WORLD_HEIGHT // 2)
         self.enemies = pygame.sprite.Group()
@@ -118,7 +125,7 @@ class Game:
         # Pause menu
         self.pause_selected_index = 0
         self.pause_menu_items = ["RESUME", "RESTART", "MAIN MENU", "QUIT"]
-        
+    
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -181,6 +188,12 @@ class Game:
             self.update_game_logic(dt)
         
     def update_game_logic(self, dt):
+        # Update visual timers
+        self.background_animation_timer += dt
+        self.grid_pulse_timer += dt
+        self.screen_flash_timer = max(0, self.screen_flash_timer - dt)
+        self.screen_distortion = max(0, self.screen_distortion - dt * 0.01)
+        
         # Update player
         keys = pygame.key.get_pressed()
         self.player.update(keys, dt, self.WORLD_WIDTH, self.WORLD_HEIGHT)
@@ -454,10 +467,9 @@ class Game:
                     self.total_kills += 1
                     self.score += enemy.score_value
                     
-                    # Create death particles
-                    self.particle_system.create_explosion(
-                        enemy.rect.centerx, enemy.rect.centery,
-                        self.HOT_PINK, 15
+                    # Create enhanced death particles
+                    self.particle_system.create_death_explosion(
+                        enemy.rect.centerx, enemy.rect.centery, enemy.enemy_type
                     )
                     
                     self.sound_manager.play_sound("enemy_death")
@@ -528,6 +540,7 @@ class Game:
                 self.player.take_damage(enemy.damage)
                 self.add_camera_shake(10)
                 self.sound_manager.play_sound("player_hit")
+                self.add_screen_distortion(2.0)
                 
                 # Create damage particles
                 self.particle_system.create_explosion(
@@ -544,11 +557,20 @@ class Game:
     def add_camera_shake(self, intensity):
         self.camera_shake = max(self.camera_shake, intensity)
     
+    def add_screen_flash(self, color, duration=200):
+        """Add a screen flash effect for dramatic moments"""
+        self.screen_flash_color = color
+        self.screen_flash_timer = duration
+    
+    def add_screen_distortion(self, intensity=1.0):
+        """Add screen distortion effect"""
+        self.screen_distortion = max(self.screen_distortion, intensity)
+    
     def draw(self):
         # Clear screen with dark background
         self.screen.fill(self.DARK_PURPLE)
         
-        # Draw grid background (cyberpunk style) - larger world grid
+        # Draw simple grid background (cyberpunk style) - larger world grid
         self.draw_world_grid()
         
         # Calculate total offset (camera + shake)
@@ -579,7 +601,7 @@ class Game:
                 # Calculate screen center position
                 screen_center_x = projectile.rect.centerx + total_offset_x
                 screen_center_y = projectile.rect.centery + total_offset_y
-                projectile.draw(self.screen, (screen_center_x, screen_center_y))
+                projectile.draw(self.screen, (screen_center_x, screen_center_y), (total_offset_x, total_offset_y))
         
         # Draw powerups with camera offset
         for powerup in self.powerups:
@@ -650,6 +672,24 @@ class Game:
             self.level_up_ui.draw(self.screen, self.level_system, self.level_up_choices)
         elif self.game_state == "cheat_menu":
             self.cheat_menu.draw(self.screen)
+        
+        # Apply screen effects
+        self.apply_screen_effects()
+    
+    def apply_screen_effects(self):
+        """Apply post-processing screen effects"""
+        # Screen flash effect
+        if self.screen_flash_timer > 0:
+            flash_alpha = int(255 * (self.screen_flash_timer / 200))
+            flash_surface = pygame.Surface((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+            flash_surface.set_alpha(flash_alpha)
+            flash_surface.fill(self.screen_flash_color)
+            self.screen.blit(flash_surface, (0, 0))
+        
+        # Simple screen shake effect instead of distortion
+        if self.screen_distortion > 0:
+            # Just add more camera shake instead of complex distortion
+            self.add_camera_shake(int(self.screen_distortion * 5))
     
     def draw_world_grid(self):
         """Draw a grid that shows the world coordinates"""

@@ -236,12 +236,20 @@ class Player(pygame.sprite.Sprite):
             self.heal(50)
     
     def draw(self, surface):
-        # Draw player based on the provided pixel art reference
+        # Draw enhanced player with animations and effects
         center_x, center_y = self.rect.center
         
         # Determine if player is invincible (flashing effect)
         is_invincible = self.damage_cooldown > 0
         flash = is_invincible and (self.damage_cooldown % 200 < 100)
+        
+        # Draw shield effect first (behind player)
+        if self.shield_current > 0:
+            self._draw_shield_effect(surface, center_x, center_y)
+        
+        # Draw energy aura for powered-up states
+        if "damage" in self.powerup_timers or "speed" in self.powerup_timers:
+            self._draw_power_aura(surface, center_x, center_y)
         
         if not flash:
             # Color palette from the reference image
@@ -359,6 +367,77 @@ class Player(pygame.sprite.Sprite):
                                pygame.Rect(base_x - 1, base_y - 2, 2, 1))
                 pygame.draw.rect(surface, accent_cyan, 
                                pygame.Rect(base_x - 1, base_y + 8, 2, 2))
+    
+    def _draw_shield_effect(self, surface, center_x, center_y):
+        """Draw shield visual effect around player"""
+        import time
+        current_time = time.time() * 1000  # Convert to milliseconds
+        
+        # Shield strength determines visual intensity
+        shield_percentage = self.shield_current / self.shield_max if self.shield_max > 0 else 0
+        
+        # Pulsing shield effect
+        pulse = abs(math.sin(current_time * 0.005)) * 0.5 + 0.5
+        shield_alpha = int(80 * shield_percentage * pulse)
+        
+        # Multiple shield layers for depth
+        for layer in range(3):
+            radius = 20 + layer * 3
+            layer_alpha = max(20, shield_alpha - layer * 20)
+            
+            # Create shield color (cyan-blue)
+            shield_color = (self.CYAN[0], self.CYAN[1], self.CYAN[2])
+            
+            # Draw shield ring
+            pygame.draw.circle(surface, shield_color, (int(center_x), int(center_y)), radius, 2)
+        
+        # Shield energy sparks
+        if shield_percentage > 0.5:
+            for i in range(6):
+                angle = (current_time * 0.01 + i * math.pi / 3) % (2 * math.pi)
+                spark_x = center_x + math.cos(angle) * 22
+                spark_y = center_y + math.sin(angle) * 22
+                pygame.draw.circle(surface, (255, 255, 255), (int(spark_x), int(spark_y)), 1)
+    
+    def _draw_power_aura(self, surface, center_x, center_y):
+        """Draw power-up aura around player"""
+        import time
+        current_time = time.time() * 1000
+        
+        # Determine aura color based on power-up type
+        if "damage" in self.powerup_timers:
+            aura_color = self.HOT_PINK
+        elif "speed" in self.powerup_timers:
+            aura_color = self.MINT_GREEN
+        else:
+            aura_color = self.ELECTRIC_BLUE
+        
+        # Pulsing aura effect
+        pulse = math.sin(current_time * 0.008) * 0.4 + 0.6
+        
+        # Multiple aura layers
+        for layer in range(4):
+            radius = int((25 + layer * 5) * pulse)
+            layer_alpha = max(10, int(40 - layer * 8))
+            
+            # Create semi-transparent surface for aura
+            aura_surf = pygame.Surface((radius * 2, radius * 2))
+            aura_surf.set_alpha(layer_alpha)
+            aura_surf.fill(aura_color)
+            
+            # Draw as circle
+            pygame.draw.circle(aura_surf, aura_color, (radius, radius), radius)
+            surface.blit(aura_surf, (center_x - radius, center_y - radius))
+        
+        # Energy particles around player
+        for i in range(8):
+            angle = (current_time * 0.01 + i * math.pi / 4) % (2 * math.pi)
+            particle_distance = 30 + math.sin(current_time * 0.01 + i) * 5
+            particle_x = center_x + math.cos(angle) * particle_distance
+            particle_y = center_y + math.sin(angle) * particle_distance
+            
+            particle_size = 2 + int(math.sin(current_time * 0.015 + i) * 1)
+            pygame.draw.circle(surface, (255, 255, 255), (int(particle_x), int(particle_y)), particle_size)
     
     def get_health_percentage(self):
         actual_max_health = self.max_health + self.max_health_bonus
