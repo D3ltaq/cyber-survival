@@ -1,6 +1,18 @@
 import pygame
 import math
 
+# Fix linter errors for pygame constants
+if not hasattr(pygame, 'K_UP'):
+    pygame.K_UP = 273
+    pygame.K_DOWN = 274
+    pygame.K_w = 119
+    pygame.K_s = 115
+    pygame.K_RETURN = 13
+    pygame.K_SPACE = 32
+    pygame.KEYDOWN = 768
+    pygame.MOUSEBUTTONDOWN = 1025
+    pygame.MOUSEMOTION = 1024
+
 class LevelUpUI:
     def __init__(self, screen_width, screen_height):
         self.screen_width = screen_width

@@ -210,7 +210,7 @@ class UI:
         controls = [
             "WASD/Arrows: Move",
             "Mouse/Space: Shoot",
-            "ESC: Pause"
+            "ESC: Pause  C: Cheats"
         ]
         
         for i, control in enumerate(controls):

@@ -1,6 +1,7 @@
 import pygame
 import math
-from entities.projectile import Projectile
+from .projectile import Projectile
+from .weapon_system import WeaponSystem
 
 # Fix linter errors for pygame constants
 if not hasattr(pygame, 'K_LEFT'):
@@ -22,6 +23,9 @@ class Player(pygame.sprite.Sprite):
         self.speed = 300  # pixels per second
         self.max_health = 100
         self.health = self.max_health
+        
+        # Weapon system
+        self.weapon_system = WeaponSystem()
         
         # Shooting
         self.shoot_cooldown = 0
@@ -160,7 +164,10 @@ class Player(pygame.sprite.Sprite):
         self.rect.clamp_ip(pygame.Rect(0, 0, screen_width, screen_height))
     
     def shoot(self):
-        actual_shoot_delay = self.shoot_delay * self.shoot_delay_multiplier
+        # Get weapon-specific fire rate multiplier
+        fire_rate_multiplier = self.weapon_system.get_fire_rate_multiplier(self.current_weapon)
+        actual_shoot_delay = self.shoot_delay * self.shoot_delay_multiplier * fire_rate_multiplier
+        
         if self.shoot_cooldown <= 0:
             # Get mouse position for direction
             mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -170,103 +177,28 @@ class Player(pygame.sprite.Sprite):
             dy = mouse_y - self.rect.centery
             angle = math.atan2(dy, dx)
             
-            # Calculate total damage
-            total_damage = int(20 * self.damage_multiplier * self.base_damage_multiplier)
+            # Calculate base damage
+            base_damage = int(20 * self.damage_multiplier * self.base_damage_multiplier)
             
-            projectiles = []
-            
-            # Handle different weapon types
-            if self.current_weapon == "laser_rifle":
-                # Continuous laser beam - create multiple fast projectiles
-                for i in range(5):
-                    proj = Projectile(self.rect.centerx, self.rect.centery, angle, damage=total_damage // 2)
-                    proj.speed = 800
-                    proj.color = self.ELECTRIC_BLUE
-                    projectiles.append(proj)
-                actual_shoot_delay = actual_shoot_delay * 0.3
-                
-            elif self.current_weapon == "plasma_cannon":
-                # Slow, powerful plasma shots
-                proj = Projectile(self.rect.centerx, self.rect.centery, angle, damage=total_damage * 3)
-                proj.speed = 300
-                proj.size = 8  # Larger projectile
-                proj.color = self.PURPLE
-                proj.explosive = True
-                projectiles.append(proj)
-                actual_shoot_delay = actual_shoot_delay * 2.5
-                
-            elif self.current_weapon == "shotgun":
-                # Shotgun spread
-                pellet_count = 8
-                spread_angle = 1.0  # Wide spread
-                
-                for i in range(pellet_count):
-                    angle_offset = (i / (pellet_count - 1) - 0.5) * spread_angle
-                    projectile_angle = angle + angle_offset
-                    proj = Projectile(self.rect.centerx, self.rect.centery, projectile_angle, damage=total_damage // 3)
-                    proj.speed = 500
-                    proj.size = 3
-                    proj.color = self.HOT_PINK
-                    projectiles.append(proj)
-                actual_shoot_delay = actual_shoot_delay * 1.5
-                
-            else:
-                # Default weapon behavior
-                # Create main projectile(s)
-                if self.has_double_shot:
-                    # Fire two projectiles side by side
-                    offset_angle = math.pi / 2  # Perpendicular to firing direction
-                    offset_distance = 8
-                    
-                    pos1_x = self.rect.centerx + math.cos(offset_angle) * offset_distance
-                    pos1_y = self.rect.centery + math.sin(offset_angle) * offset_distance
-                    pos2_x = self.rect.centerx - math.cos(offset_angle) * offset_distance
-                    pos2_y = self.rect.centery - math.sin(offset_angle) * offset_distance
-                    
-                    proj1 = Projectile(pos1_x, pos1_y, angle, damage=total_damage)
-                    proj2 = Projectile(pos2_x, pos2_y, angle, damage=total_damage)
-                    
-                    if self.has_piercing:
-                        proj1.piercing = True
-                        proj2.piercing = True
-                    if self.has_explosive:
-                        proj1.explosive = True
-                        proj2.explosive = True
-                        
-                    projectiles.extend([proj1, proj2])
-                    
-                elif self.has_spread_shot:
-                    # Fire spread of projectiles
-                    spread_count = 2 + self.spread_shot_level  # 3-5 projectiles
-                    spread_angle = math.pi / 6  # 30 degrees total spread
-                    
-                    for i in range(spread_count):
-                        if spread_count == 1:
-                            proj_angle = angle
-                        else:
-                            angle_offset = (i / (spread_count - 1) - 0.5) * spread_angle
-                            proj_angle = angle + angle_offset
-                        
-                        proj = Projectile(self.rect.centerx, self.rect.centery, proj_angle, damage=total_damage)
-                        if self.has_piercing:
-                            proj.piercing = True
-                        if self.has_explosive:
-                            proj.explosive = True
-                        projectiles.append(proj)
-                else:
-                    # Single projectile
-                    proj = Projectile(self.rect.centerx, self.rect.centery, angle, damage=total_damage)
-                    if self.has_piercing:
-                        proj.piercing = True
-                    if self.has_explosive:
-                        proj.explosive = True
-                    projectiles.append(proj)
+            # Use weapon system to create projectiles
+            projectiles = self.weapon_system.create_projectiles(
+                self.current_weapon,
+                self.rect.centerx,
+                self.rect.centery,
+                angle,
+                base_damage,
+                self
+            )
             
             self.shoot_cooldown = actual_shoot_delay
             return projectiles
         return []
     
     def take_damage(self, damage):
+        # God mode check (if health is very high, assume god mode)
+        if self.health > 9000:
+            return
+            
         if self.can_take_damage():
             # Shield absorbs damage first
             if self.shield_current > 0:
@@ -466,6 +398,12 @@ class Player(pygame.sprite.Sprite):
             self.current_weapon = "plasma_cannon"
         elif upgrade_id == "shotgun":
             self.current_weapon = "shotgun"
+        elif upgrade_id == "sniper_rifle":
+            self.current_weapon = "sniper_rifle"
+        elif upgrade_id == "machine_gun":
+            self.current_weapon = "machine_gun"
+        elif upgrade_id == "energy_beam":
+            self.current_weapon = "energy_beam"
         elif upgrade_id == "orbital_missiles":
             self.orbital_missiles_level = level_system.get_upgrade_level("orbital_missiles")
         elif upgrade_id == "energy_shuriken":
@@ -505,10 +443,10 @@ class Player(pygame.sprite.Sprite):
                 dy = nearest_enemy.rect.centery - self.rect.centery
                 angle = math.atan2(dy, dx)
                 
-                # Create projectile
+                # Create projectile with auto-targeting type
                 damage = int(15 * self.auto_targeting_level * self.base_damage_multiplier)
-                proj = Projectile(self.rect.centerx, self.rect.centery, angle, damage=damage)
-                proj.speed = 600  # Faster auto-targeting shots
+                proj = Projectile(self.rect.centerx, self.rect.centery, angle, damage=damage, 
+                                speed=600, weapon_type="auto_targeting", max_range=400)
                 
                 # Set cooldown based on level
                 cooldown = max(800 - (self.auto_targeting_level * 200), 200)

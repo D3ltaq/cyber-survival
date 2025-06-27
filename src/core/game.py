@@ -1,16 +1,17 @@
 import pygame
 import math
 import random
-from entities.player import Player
-from entities.enemy import Enemy, EnemySpawner
-from entities.projectile import Projectile
-from entities.powerup import PowerUp
-from ui.ui import UI
-from systems.particle import ParticleSystem
-from systems.sound_manager import SoundManager
-from core.level_system import LevelSystem, XPOrb
-from ui.level_up_ui import LevelUpUI
-from ui.main_menu import MainMenu
+from src.entities.player import Player
+from src.entities.enemy import Enemy, EnemySpawner
+from src.entities.projectile import Projectile
+from src.entities.powerup import PowerUp
+from src.ui.ui import UI
+from src.systems.particle import ParticleSystem
+from src.systems.sound_manager import SoundManager
+from src.core.level_system import LevelSystem, XPOrb
+from src.ui.level_up_ui import LevelUpUI
+from src.ui.main_menu import MainMenu
+from src.ui.cheat_menu import CheatMenu
 
 # Fix linter errors for pygame constants
 if not hasattr(pygame, 'QUIT'):
@@ -30,6 +31,7 @@ if not hasattr(pygame, 'QUIT'):
     pygame.K_a = 97
     pygame.K_d = 100
     pygame.K_r = 114
+    pygame.K_c = 99
 
 class Game:
     def __init__(self):
@@ -75,6 +77,7 @@ class Game:
         self.level_system = LevelSystem()
         self.level_up_ui = LevelUpUI(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
         self.main_menu = MainMenu(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+        self.cheat_menu = CheatMenu(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
         
         # Wave system
         self.current_wave = 1
@@ -119,6 +122,8 @@ class Game:
                         self.game_state = "main_menu"
                 elif event.key == pygame.K_r and self.game_state == "game_over":
                     self.restart_game()
+                elif event.key == pygame.K_c and self.game_state == "playing":
+                    self.game_state = "cheat_menu"
             
             # Handle main menu input
             if self.game_state == "main_menu":
@@ -148,6 +153,14 @@ class Game:
                 if selected_upgrade:
                     self.apply_level_upgrade(selected_upgrade)
                     self.game_state = "playing"
+            
+            # Handle cheat menu input
+            elif self.game_state == "cheat_menu":
+                cheat_action = self.cheat_menu.handle_input(event)
+                if cheat_action:
+                    self.handle_cheat_action(cheat_action)
+                    if cheat_action[1] == "action" and cheat_action[2] == "exit":
+                        self.game_state = "playing"
     
     def update(self, dt):
         if self.game_state == "playing":
@@ -262,6 +275,7 @@ class Game:
             # Check if wave is complete
             enemies_count = len(self.enemies)
             if self.enemies_spawned >= self.enemies_in_wave and enemies_count == 0:
+                print(f"Wave {self.current_wave} complete! All {self.enemies_in_wave} enemies defeated.")
                 self.complete_wave()
     
     def start_next_wave(self):
@@ -275,6 +289,7 @@ class Game:
         self.enemy_spawner.increase_difficulty()
         
     def complete_wave(self):
+        old_wave = self.current_wave
         self.current_wave += 1
         self.in_wave_break = True
         self.wave_timer = 0
@@ -283,6 +298,9 @@ class Game:
         wave_bonus = self.current_wave * 100
         self.score += wave_bonus
         
+        print(f"WAVE {old_wave} COMPLETED! Starting wave break. Next wave: {self.current_wave}")
+        print(f"Score bonus: +{wave_bonus}. Total score: {self.score}")
+        
         # Chance to spawn powerup
         if random.random() < 0.3:  # 30% chance
             powerup = PowerUp(
@@ -290,6 +308,7 @@ class Game:
                 random.randint(50, self.SCREEN_HEIGHT - 50)
             )
             self.powerups.add(powerup)
+            print("Powerup spawned!")
         
         self.sound_manager.play_sound("wave_complete")
     
@@ -461,8 +480,9 @@ class Game:
         self.screen.blit(temp_surface, (offset_x, offset_y))
         
         # Draw UI (not affected by camera shake)
+        enemies_remaining = len(self.enemies)
         self.ui.draw(self.screen, self.player, self.current_wave, self.score, 
-                    self.enemies_in_wave - self.enemies_spawned, self.in_wave_break, 
+                    enemies_remaining, self.in_wave_break, 
                     self.wave_timer, self.wave_break_duration, self.level_system)
         
         # Draw game state overlays
@@ -476,6 +496,8 @@ class Game:
             self.draw_game_over_screen()
         elif self.game_state == "level_up":
             self.level_up_ui.draw(self.screen, self.level_system, self.level_up_choices)
+        elif self.game_state == "cheat_menu":
+            self.cheat_menu.draw(self.screen)
     
     def draw_grid(self):
         grid_size = 50
@@ -586,6 +608,156 @@ class Game:
         """Apply the selected upgrade"""
         if self.level_system.apply_upgrade(upgrade_id):
             self.player.apply_level_upgrade(upgrade_id, self.level_system)
+    
+    def handle_cheat_action(self, action):
+        """Handle cheat menu actions"""
+        name, action_type, action_value = action
+        
+        print(f"Cheat activated: {name}")
+        
+        if action_type == "weapon":
+            self.player.current_weapon = action_value
+            print(f"Weapon changed to: {action_value}")
+        
+        elif action_type == "upgrade":
+            # Apply upgrade through level system
+            if self.level_system.apply_upgrade(action_value):
+                self.player.apply_level_upgrade(action_value, self.level_system)
+                print(f"Upgrade applied: {action_value}")
+        
+        elif action_type == "powerup":
+            duration = 30000  # 30 seconds
+            self.player.apply_powerup(action_value, duration)
+            print(f"Powerup applied: {action_value} for 30 seconds")
+        
+        elif action_type == "cheat":
+            if action_value == "full_health":
+                actual_max_health = self.player.max_health + getattr(self.player, 'max_health_bonus', 0)
+                self.player.health = actual_max_health
+                print("Health restored to full")
+            
+            elif action_value == "god_mode":
+                self.cheat_menu.god_mode_active = not self.cheat_menu.god_mode_active
+                if self.cheat_menu.god_mode_active:
+                    self.player.health = 99999  # Effectively infinite
+                    print("God mode activated")
+                else:
+                    actual_max_health = self.player.max_health + getattr(self.player, 'max_health_bonus', 0)
+                    self.player.health = actual_max_health
+                    print("God mode deactivated")
+            
+            elif action_value == "max_upgrades":
+                # Apply all upgrades to max level
+                for upgrade_id in self.level_system.available_upgrades:
+                    max_level = self.level_system.available_upgrades[upgrade_id]["max_level"]
+                    for _ in range(max_level):
+                        if self.level_system.apply_upgrade(upgrade_id):
+                            self.player.apply_level_upgrade(upgrade_id, self.level_system)
+                print("All upgrades maxed out!")
+            
+            elif action_value == "add_xp":
+                self.level_system.add_xp(1000)
+                print("Added 1000 XP")
+            
+            elif action_value == "level_up":
+                if self.level_system.level_up():
+                    self.trigger_level_up()
+                print("Triggered level up")
+            
+            elif action_value == "add_score":
+                self.score += 10000
+                print("Added 10000 score")
+            
+            elif action_value == "wave_5":
+                self.current_wave = 5
+                self.start_next_wave()
+                print("Jumped to wave 5")
+            
+            elif action_value == "wave_10":
+                self.current_wave = 10
+                self.start_next_wave()
+                print("Jumped to wave 10")
+            
+            elif action_value == "clear_enemies":
+                self.enemies.empty()
+                print("All enemies cleared")
+            
+            elif action_value == "spawn_basic":
+                for i in range(10):
+                    enemy = Enemy(
+                        random.randint(50, self.SCREEN_WIDTH - 50),
+                        random.randint(50, self.SCREEN_HEIGHT - 50),
+                        "basic"
+                    )
+                    self.enemies.add(enemy)
+                print("Spawned 10 basic enemies")
+            
+            elif action_value == "spawn_fast":
+                for i in range(5):
+                    enemy = Enemy(
+                        random.randint(50, self.SCREEN_WIDTH - 50),
+                        random.randint(50, self.SCREEN_HEIGHT - 50),
+                        "fast"
+                    )
+                    self.enemies.add(enemy)
+                print("Spawned 5 fast enemies")
+            
+            elif action_value == "spawn_tank":
+                for i in range(3):
+                    enemy = Enemy(
+                        random.randint(50, self.SCREEN_WIDTH - 50),
+                        random.randint(50, self.SCREEN_HEIGHT - 50),
+                        "tank"
+                    )
+                    self.enemies.add(enemy)
+                print("Spawned 3 tank enemies")
+            
+            elif action_value == "spawn_boss":
+                enemy = Enemy(
+                    self.SCREEN_WIDTH // 2,
+                    self.SCREEN_HEIGHT // 2,
+                    "boss"
+                )
+                self.enemies.add(enemy)
+                print("Spawned 1 boss enemy")
+            
+            elif action_value == "spawn_mixed":
+                enemy_types = ["basic", "fast", "tank", "boss"]
+                for enemy_type in enemy_types:
+                    for i in range(2):
+                        enemy = Enemy(
+                            random.randint(50, self.SCREEN_WIDTH - 50),
+                            random.randint(50, self.SCREEN_HEIGHT - 50),
+                            enemy_type
+                        )
+                        self.enemies.add(enemy)
+                print("Spawned mixed enemy wave")
+            
+            elif action_value == "spawn_powerup":
+                powerup = PowerUp(
+                    random.randint(50, self.SCREEN_WIDTH - 50),
+                    random.randint(50, self.SCREEN_HEIGHT - 50)
+                )
+                self.powerups.add(powerup)
+                print("Spawned powerup")
+            
+            elif action_value == "clear_powerups":
+                self.powerups.empty()
+                print("All powerups cleared")
+            
+            elif action_value == "reset_player":
+                # Reset player to initial state
+                player_x, player_y = self.player.rect.center
+                self.player = Player(player_x, player_y)
+                print("Player reset to initial state")
+            
+            elif action_value == "camera_shake":
+                self.add_camera_shake(50)
+                print("Big camera shake!")
+        
+        elif action_type == "action":
+            if action_value == "exit":
+                print("Exiting cheat menu")
     
     def handle_area_damage(self, damage, radius):
         """Handle area damage effect"""

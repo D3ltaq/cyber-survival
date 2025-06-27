@@ -64,6 +64,24 @@ class LevelSystem:
                 "type": "weapon_new",
                 "max_level": 1
             },
+            "sniper_rifle": {
+                "name": "Precision Rifle",
+                "description": "High-damage long-range weapon with piercing",
+                "type": "weapon_new",
+                "max_level": 1
+            },
+            "machine_gun": {
+                "name": "Rapid-Fire Gun",
+                "description": "Very fast firing rate with slight spread",
+                "type": "weapon_new",
+                "max_level": 1
+            },
+            "energy_beam": {
+                "name": "Energy Beam",
+                "description": "Continuous beam that pierces enemies",
+                "type": "weapon_new",
+                "max_level": 1
+            },
             
             # Passive traits
             "health_boost": {
