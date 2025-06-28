@@ -1,5 +1,6 @@
 import pygame
 import math
+import random
 from .projectile import Projectile
 from .weapon_system import WeaponSystem
 
@@ -102,6 +103,15 @@ class Player(pygame.sprite.Sprite):
         self.area_damage_level = 0
         self.area_damage_timer = 0
         
+        # Cybernetic Implants (new passive upgrades)
+        self.has_night_vision = False  # Could be used to detect stealth enemies
+        self.night_vision_level = 0
+        self.has_neural_link = False  # Reduces cooldowns
+        self.neural_link_level = 0
+        self.has_cyber_armor = False  # Increases damage resistance
+        self.cyber_armor_level = 0
+        self.damage_reduction = 1.0  # Multiplier for incoming damage
+        
     def update(self, keys, dt, screen_width, screen_height):
         # Update timers
         self.shoot_cooldown = max(0, self.shoot_cooldown - dt)
@@ -145,6 +155,13 @@ class Player(pygame.sprite.Sprite):
                 self.damage_multiplier = 1.0
             elif powerup_type == "speed":
                 self.speed_multiplier = 1.0
+            elif powerup_type == "overclock":
+                self.shoot_delay_multiplier = 1.0
+        
+        # Apply neural link effect (reduces cooldowns)
+        if self.has_neural_link:
+            neural_link_reduction = 1.0 - (self.neural_link_level * 0.05)  # 5% reduction per level
+            self.shoot_delay_multiplier = min(self.shoot_delay_multiplier, neural_link_reduction)
         
         # Movement
         dx = 0
@@ -224,25 +241,32 @@ class Player(pygame.sprite.Sprite):
     
     def take_damage(self, damage):
         # God mode check (if health is very high, assume god mode)
-        if self.health > 9000:
-            return
-            
-        if self.can_take_damage():
-            # Shield absorbs damage first
+        if self.health > 999:
+            return False
+        
+        # Apply damage reduction from cyber armor
+        if self.has_cyber_armor:
+            self.damage_reduction = 1.0 - (self.cyber_armor_level * 0.1)  # 10% reduction per level
+            damage = int(damage * self.damage_reduction)
+        
+        if self.damage_cooldown <= 0:
+            # Damage shield first if available
             if self.shield_current > 0:
                 shield_damage = min(damage, self.shield_current)
                 self.shield_current -= shield_damage
                 damage -= shield_damage
             
-            # Apply remaining damage to health
             if damage > 0:
                 self.health -= damage
                 self.damage_cooldown = self.damage_delay
             
-            # Clamp health
-            self.health = max(0, self.health)
+            if self.health <= 0:
+                return True  # Player died
+            return False  # Player survived
+        return False  # No damage taken due to cooldown
     
     def can_take_damage(self):
+        """Check if player can take damage"""
         return self.damage_cooldown <= 0
     
     def heal(self, amount):
@@ -277,13 +301,20 @@ class Player(pygame.sprite.Sprite):
         
         if not flash:
             self._draw_detailed_player(surface, center_x, center_y)
+        else:
+            # Draw damage sparks when hit
+            if is_invincible:
+                for _ in range(5):  # Draw random sparks
+                    spark_x = center_x + random.randint(-10, 10)
+                    spark_y = center_y + random.randint(-10, 10)
+                    pygame.draw.line(surface, (255, 200, 0), (spark_x, spark_y), 
+                                    (spark_x + random.randint(-5, 5), spark_y + random.randint(-5, 5)), 2)
     
     def _draw_detailed_player(self, surface, center_x, center_y):
         """Draw detailed animated cyberpunk player character"""
         # Scale factor to make character bigger
         scale = 1.5
         
-
         # Color palette - more sophisticated cyberpunk colors
         base_armor = (25, 30, 40)
         armor_highlight = (45, 55, 70)
@@ -302,6 +333,12 @@ class Player(pygame.sprite.Sprite):
             energy_core = (150, 255, 100)
             visor_glow = (200, 255, 150)
         
+        # Cybernetic implant visual modifications
+        if self.has_night_vision:
+            visor_glow = (100, 255, 100)  # Green glow for night vision
+        elif self.has_neural_link:
+            energy_core = (200, 100, 255)  # Purple core for neural link
+        
         # Animation offsets (scaled)
         walk_offset = 0
         bob_offset = 0
@@ -309,171 +346,273 @@ class Player(pygame.sprite.Sprite):
             walk_offset = int(math.sin(self.walk_cycle) * 3 * scale)
             bob_offset = int(math.sin(self.walk_cycle * 2) * 1.5 * scale)
         
-        # Breathing animation when idle
+        # Breathing animation when idle with enhanced effect
         if not self.is_moving:
-            bob_offset = int(math.sin(self.animation_timer * 0.003) * 0.8 * scale)
+            bob_offset = int(math.sin(self.animation_timer * 0.003) * 1.2 * scale)  # More pronounced breathing
+        
+        # Shooting animation for right arm
+        shoot_offset = 0
+        shoot_angle_adjust = 0
+        if self.shoot_cooldown > 0:
+            shoot_offset = int(math.sin(self.shoot_cooldown * 0.1) * 2 * scale)  # Recoil effect
+            shoot_angle_adjust = 0.2  # Slight forward lean during shooting for combat stance
         
         # Base position with animation
         base_x = center_x
         base_y = center_y + bob_offset
         
+        # Adjust torso tilt based on direction for more dynamic movement
+        torso_tilt = 0
+        if self.is_moving:
+            if self.facing_direction == 0:  # Right
+                torso_tilt = int(math.sin(self.walk_cycle) * 1 * scale)
+            elif self.facing_direction == 1:  # Left
+                torso_tilt = -int(math.sin(self.walk_cycle) * 1 * scale)
+            elif self.facing_direction == 2:  # Up
+                torso_tilt = -int(math.sin(self.walk_cycle) * 0.5 * scale)
+            elif self.facing_direction == 3:  # Down
+                torso_tilt = int(math.sin(self.walk_cycle) * 0.5 * scale)
+        
         # 1. Realistic shaped shadow (like enemies)
         self.draw_shadow(surface, center_x, center_y)
         
-        # 2. Legs with walking animation (scaled)
+        # 2. Legs with walking animation (scaled) and directional adjustment
         leg_offset = walk_offset if self.is_moving else 0
         leg_width = int(4 * scale)
         leg_height = int(10 * scale)
+        leg_spread = int(4 * scale)  # Default spread between legs
+        if self.facing_direction == 2:  # Facing up, legs closer together
+            leg_spread = int(3 * scale)
+        elif self.facing_direction == 3:  # Facing down, legs slightly wider
+            leg_spread = int(5 * scale)
         
         # Left leg
-        left_leg_x = base_x - int(4 * scale) + (leg_offset if self.facing_direction == 0 else -leg_offset)
+        left_leg_x = base_x - leg_spread
+        if self.facing_direction == 0:  # Right
+            left_leg_x += leg_offset
+        elif self.facing_direction == 1:  # Left
+            left_leg_x -= leg_offset
+        elif self.facing_direction == 2:  # Up
+            left_leg_x -= leg_offset * 0.5  # Reduced offset for up/down movement
+        elif self.facing_direction == 3:  # Down
+            left_leg_x += leg_offset * 0.5  # Reduced offset for up/down movement
         pygame.draw.rect(surface, base_armor, 
                         pygame.Rect(left_leg_x - leg_width//2, base_y + int(4 * scale), leg_width, leg_height))
         pygame.draw.rect(surface, armor_highlight, 
                         pygame.Rect(left_leg_x - int(1 * scale), base_y + int(5 * scale), int(2 * scale), int(3 * scale)))
         pygame.draw.rect(surface, energy_core, 
                         pygame.Rect(left_leg_x, base_y + int(7 * scale), int(1 * scale), int(1 * scale)))
+        # Add cybernetic circuit lines on legs with glow
+        pygame.draw.line(surface, energy_core, (left_leg_x - int(1 * scale), base_y + int(6 * scale)), 
+                        (left_leg_x - int(1 * scale), base_y + int(10 * scale)), int(1 * scale))
+        pygame.draw.line(surface, energy_core, (left_leg_x + int(1 * scale), base_y + int(8 * scale)), 
+                        (left_leg_x + int(1 * scale), base_y + int(12 * scale)), int(1 * scale))
         
         # Right leg
-        right_leg_x = base_x + int(4 * scale) + (-leg_offset if self.facing_direction == 0 else leg_offset)
+        right_leg_x = base_x + leg_spread
+        if self.facing_direction == 0:  # Right
+            right_leg_x -= leg_offset
+        elif self.facing_direction == 1:  # Left
+            right_leg_x += leg_offset
+        elif self.facing_direction == 2:  # Up
+            right_leg_x += leg_offset * 0.5  # Reduced offset for up/down movement
+        elif self.facing_direction == 3:  # Down
+            right_leg_x -= leg_offset * 0.5  # Reduced offset for up/down movement
         pygame.draw.rect(surface, base_armor, 
                         pygame.Rect(right_leg_x - leg_width//2, base_y + int(4 * scale), leg_width, leg_height))
         pygame.draw.rect(surface, armor_highlight, 
                         pygame.Rect(right_leg_x - int(1 * scale), base_y + int(5 * scale), int(2 * scale), int(3 * scale)))
         pygame.draw.rect(surface, energy_core, 
                         pygame.Rect(right_leg_x, base_y + int(7 * scale), int(1 * scale), int(1 * scale)))
+        # Add cybernetic circuit lines on legs with glow
+        pygame.draw.line(surface, energy_core, (right_leg_x + int(1 * scale), base_y + int(6 * scale)), 
+                        (right_leg_x + int(1 * scale), base_y + int(10 * scale)), int(1 * scale))
+        pygame.draw.line(surface, energy_core, (right_leg_x - int(1 * scale), base_y + int(8 * scale)), 
+                        (right_leg_x - int(1 * scale), base_y + int(12 * scale)), int(1 * scale))
         
-        # 3. Main torso - more detailed (scaled)
+        # 3. Main torso - more detailed (scaled) with directional tilt
         # Core body
         torso_width = int(12 * scale)
         torso_height = int(12 * scale)
-        torso_rect = pygame.Rect(base_x - torso_width//2, base_y - int(6 * scale), torso_width, torso_height)
+        torso_y = base_y - int(6 * scale) + torso_tilt
+        torso_rect = pygame.Rect(base_x - torso_width//2, torso_y, torso_width, torso_height)
         pygame.draw.rect(surface, base_armor, torso_rect)
         
         # Chest plate with energy core
         chest_width = int(10 * scale)
         chest_height = int(6 * scale)
-        chest_rect = pygame.Rect(base_x - chest_width//2, base_y - int(5 * scale), chest_width, chest_height)
+        chest_rect = pygame.Rect(base_x - chest_width//2, torso_y + int(1 * scale), chest_width, chest_height)
         pygame.draw.rect(surface, armor_highlight, chest_rect)
         
-        # Energy core in chest - pulsing
+        # Energy core in chest - pulsing with more detail
         core_intensity = int(128 + 127 * math.sin(self.animation_timer * 0.01))
         core_radius = int(2 * scale)
         inner_core_radius = int(1 * scale)
-        pygame.draw.circle(surface, energy_core, (base_x, base_y - int(2 * scale)), core_radius)
-        pygame.draw.circle(surface, (255, 255, 255), (base_x, base_y - int(2 * scale)), inner_core_radius)
+        pygame.draw.circle(surface, energy_core, (base_x, torso_y + int(4 * scale)), core_radius)
+        pygame.draw.circle(surface, (255, 255, 255), (base_x, torso_y + int(4 * scale)), inner_core_radius)
+        # Add radiating lines from core for enhanced effect
+        for angle in range(0, 360, 45):
+            rad = math.radians(angle)
+            start_x = base_x + math.cos(rad) * core_radius
+            start_y = torso_y + int(4 * scale) + math.sin(rad) * core_radius
+            end_x = base_x + math.cos(rad) * (core_radius + 2 * scale)
+            end_y = torso_y + int(4 * scale) + math.sin(rad) * (core_radius + 2 * scale)
+            pygame.draw.line(surface, energy_core, (start_x, start_y), (end_x, end_y), 1)
         
-        # Side armor panels
+        # Side armor panels with cybernetic details
         panel_width = int(2 * scale)
         panel_height = int(4 * scale)
         pygame.draw.rect(surface, armor_detail, 
-                        pygame.Rect(base_x - int(6 * scale), base_y - int(2 * scale), panel_width, panel_height))
+                        pygame.Rect(base_x - int(6 * scale), torso_y + int(4 * scale), panel_width, panel_height))
         pygame.draw.rect(surface, armor_detail, 
-                        pygame.Rect(base_x + int(4 * scale), base_y - int(2 * scale), panel_width, panel_height))
+                        pygame.Rect(base_x + int(4 * scale), torso_y + int(4 * scale), panel_width, panel_height))
+        # Add glowing circuit lines on panels
+        pygame.draw.line(surface, energy_core, (base_x - int(5 * scale), torso_y + int(5 * scale)), 
+                        (base_x - int(5 * scale), torso_y + int(7 * scale)), 1)
+        pygame.draw.line(surface, energy_core, (base_x + int(5 * scale), torso_y + int(5 * scale)), 
+                        (base_x + int(5 * scale), torso_y + int(7 * scale)), 1)
+        # Additional circuit detail on panels
+        pygame.draw.line(surface, energy_core, (base_x - int(5 * scale), torso_y + int(6 * scale)), 
+                        (base_x - int(4 * scale), torso_y + int(6 * scale)), 1)
+        pygame.draw.line(surface, energy_core, (base_x + int(5 * scale), torso_y + int(6 * scale)), 
+                        (base_x + int(4 * scale), torso_y + int(6 * scale)), 1)
+        
+        # Additional armor plating if cyber armor is active
+        if self.has_cyber_armor:
+            extra_armor_width = int(3 * scale)
+            extra_armor_height = int(2 * scale)
+            pygame.draw.rect(surface, metal_accent, 
+                            pygame.Rect(base_x - int(7 * scale), torso_y + int(2 * scale), extra_armor_width, extra_armor_height))
+            pygame.draw.rect(surface, metal_accent, 
+                            pygame.Rect(base_x + int(4 * scale), torso_y + int(2 * scale), extra_armor_width, extra_armor_height))
+            # Add detail to extra armor
+            pygame.draw.rect(surface, armor_highlight, 
+                            pygame.Rect(base_x - int(6 * scale), torso_y + int(3 * scale), int(1 * scale), int(1 * scale)))
+            pygame.draw.rect(surface, armor_highlight, 
+                            pygame.Rect(base_x + int(5 * scale), torso_y + int(3 * scale), int(1 * scale), int(1 * scale)))
         
         # 4. Arms with weapon positioning (scaled)
         arm_angle = 0
         if self.is_moving and self.facing_direction in [0, 1]:  # Moving horizontally
             arm_angle = math.sin(self.walk_cycle * 1.5) * 0.3
+        arm_angle += shoot_angle_adjust  # Adjust arm angle during shooting for combat stance
+        
+        # Adjust arm positions based on facing direction
+        left_arm_offset_x = -int(8 * scale)
+        right_arm_offset_x = int(5 * scale)
+        if self.facing_direction == 2:  # Facing up, arms closer to body
+            left_arm_offset_x = -int(6 * scale)
+            right_arm_offset_x = int(3 * scale)
+        elif self.facing_direction == 3:  # Facing down, arms slightly outward
+            left_arm_offset_x = -int(9 * scale)
+            right_arm_offset_x = int(8 * scale)
         
         # Left arm
         arm_width = int(3 * scale)
         arm_height = int(8 * scale)
-        left_arm_x = base_x - int(8 * scale) + int(math.sin(arm_angle) * 2 * scale)
+        left_arm_x = base_x + left_arm_offset_x + int(math.sin(arm_angle) * 2 * scale)
         left_arm_y = base_y - int(3 * scale) + int(math.cos(arm_angle) * 1 * scale)
         pygame.draw.rect(surface, base_armor, 
                         pygame.Rect(left_arm_x, left_arm_y, arm_width, arm_height))
         pygame.draw.rect(surface, armor_highlight, 
                         pygame.Rect(left_arm_x, left_arm_y, int(2 * scale), int(3 * scale)))
+        # Add cybernetic detail to arm with multiple lines
+        pygame.draw.line(surface, energy_core, (left_arm_x + int(1 * scale), left_arm_y + int(4 * scale)), 
+                        (left_arm_x + int(1 * scale), left_arm_y + int(6 * scale)), 1)
+        pygame.draw.line(surface, energy_core, (left_arm_x + int(2 * scale), left_arm_y + int(5 * scale)), 
+                        (left_arm_x + int(2 * scale), left_arm_y + int(7 * scale)), 1)
+        # Add mechanical joint
+        pygame.draw.circle(surface, metal_accent, (left_arm_x + int(1.5 * scale), left_arm_y + int(3 * scale)), int(1 * scale))
         
-        # Right arm (weapon arm)
-        right_arm_x = base_x + int(5 * scale) - int(math.sin(arm_angle) * 2 * scale)
-        right_arm_y = base_y - int(3 * scale) - int(math.cos(arm_angle) * 1 * scale)
+        # Right arm (weapon arm) with shooting animation
+        right_arm_x = base_x + right_arm_offset_x - int(math.sin(arm_angle) * 2 * scale)
+        right_arm_y = base_y - int(3 * scale) - int(math.cos(arm_angle) * 1 * scale) - shoot_offset
         pygame.draw.rect(surface, base_armor, 
                         pygame.Rect(right_arm_x, right_arm_y, arm_width, arm_height))
         pygame.draw.rect(surface, armor_highlight, 
                         pygame.Rect(right_arm_x + int(1 * scale), right_arm_y, int(2 * scale), int(3 * scale)))
+        # Add cybernetic detail to arm with multiple lines
+        pygame.draw.line(surface, energy_core, (right_arm_x + int(1 * scale), right_arm_y + int(4 * scale)), 
+                        (right_arm_x + int(1 * scale), right_arm_y + int(6 * scale)), 1)
+        pygame.draw.line(surface, energy_core, (right_arm_x + int(2 * scale), right_arm_y + int(5 * scale)), 
+                        (right_arm_x + int(2 * scale), right_arm_y + int(7 * scale)), 1)
+        # Add mechanical joint
+        pygame.draw.circle(surface, metal_accent, (right_arm_x + int(1.5 * scale), right_arm_y + int(3 * scale)), int(1 * scale))
         
-        # Weapon mount on right arm
+        # Weapon mount on right arm with shooting flash
+        weapon_mount_y = right_arm_y + int(2 * scale)
+        if self.facing_direction == 2:  # Facing up, weapon higher
+            weapon_mount_y = right_arm_y + int(1 * scale)
+        elif self.facing_direction == 3:  # Facing down, weapon lower
+            weapon_mount_y = right_arm_y + int(3 * scale)
         pygame.draw.rect(surface, metal_accent, 
-                        pygame.Rect(right_arm_x + int(1 * scale), right_arm_y + int(2 * scale), int(2 * scale), int(3 * scale)))
+                        pygame.Rect(right_arm_x + int(1 * scale), weapon_mount_y, int(2 * scale), int(3 * scale)))
         pygame.draw.rect(surface, energy_core, 
-                        pygame.Rect(right_arm_x + int(1 * scale), right_arm_y + int(3 * scale), int(1 * scale), int(1 * scale)))
+                        pygame.Rect(right_arm_x + int(1 * scale), weapon_mount_y + int(1 * scale), int(1 * scale), int(1 * scale)))
+        if self.shoot_cooldown > 0 and self.shoot_cooldown < 50:  # Flash effect when shooting
+            pygame.draw.rect(surface, (255, 255, 100), 
+                            pygame.Rect(right_arm_x + int(1 * scale), weapon_mount_y + int(2 * scale), int(2 * scale), int(2 * scale)))
         
-        # 5. Head/Helmet - more detailed (scaled)
+        # 5. Head/Helmet - more detailed (scaled) with directional adjustment
         # Main helmet
         helmet_width = int(10 * scale)
         helmet_height = int(8 * scale)
-        helmet_rect = pygame.Rect(base_x - helmet_width//2, base_y - int(12 * scale), helmet_width, helmet_height)
+        helmet_y = base_y - int(12 * scale) + torso_tilt
+        if self.facing_direction == 2:  # Facing up, head tilted back
+            helmet_y -= int(1 * scale)
+        elif self.facing_direction == 3:  # Facing down, head tilted forward
+            helmet_y += int(1 * scale)
+        helmet_rect = pygame.Rect(base_x - helmet_width//2, helmet_y, helmet_width, helmet_height)
         pygame.draw.rect(surface, base_armor, helmet_rect)
         
         # Helmet ridge
         ridge_width = int(8 * scale)
         ridge_height = int(2 * scale)
         pygame.draw.rect(surface, armor_highlight, 
-                        pygame.Rect(base_x - ridge_width//2, base_y - int(11 * scale), ridge_width, ridge_height))
+                        pygame.Rect(base_x - ridge_width//2, helmet_y + int(1 * scale), ridge_width, ridge_height))
         
         # Visor - animated glow
         visor_width = int(8 * scale)
         visor_height = int(3 * scale)
-        visor_rect = pygame.Rect(base_x - visor_width//2, base_y - int(10 * scale), visor_width, visor_height)
+        visor_rect = pygame.Rect(base_x - visor_width//2, helmet_y + int(2 * scale), visor_width, visor_height)
         pygame.draw.rect(surface, (20, 40, 60), visor_rect)
         
-        # Visor glow effect
-        glow_intensity = int(100 + 50 * math.sin(self.animation_timer * 0.005))
+        # Visor glow effect with enhanced pulsing
+        glow_intensity = int(100 + 50 * math.sin(self.animation_timer * 0.008))  # Faster pulse
         glow_width = int(6 * scale)
         glow_height = int(1 * scale)
         pygame.draw.rect(surface, visor_glow, 
-                        pygame.Rect(base_x - glow_width//2, base_y - int(9 * scale), glow_width, glow_height))
+                        pygame.Rect(base_x - glow_width//2, helmet_y + int(3 * scale), glow_width, glow_height))
+        # Add secondary glow line for more tech look
+        pygame.draw.rect(surface, visor_glow, 
+                        pygame.Rect(base_x - glow_width//2, helmet_y + int(4 * scale), glow_width, int(0.5 * scale)))
         
-        # Helmet details
+        # Helmet details with cybernetic enhancements
         detail_width = int(1 * scale)
         detail_height = int(3 * scale)
         pygame.draw.rect(surface, metal_accent, 
-                        pygame.Rect(base_x - int(5 * scale), base_y - int(8 * scale), detail_width, detail_height))
+                        pygame.Rect(base_x - int(5 * scale), helmet_y + int(4 * scale), detail_width, detail_height))
         pygame.draw.rect(surface, metal_accent, 
-                        pygame.Rect(base_x + int(4 * scale), base_y - int(8 * scale), detail_width, detail_height))
-        
-        # Antenna/sensors
-        antenna_width = int(1 * scale)
-        antenna_height = int(2 * scale)
+                        pygame.Rect(base_x + int(4 * scale), helmet_y + int(4 * scale), detail_width, detail_height))
+        # Add small glowing dots for tech effect
         pygame.draw.rect(surface, energy_core, 
-                        pygame.Rect(base_x - antenna_width//2, base_y - int(13 * scale), antenna_width, antenna_height))
+                        pygame.Rect(base_x - int(5 * scale), helmet_y + int(5 * scale), int(0.5 * scale), int(0.5 * scale)))
         pygame.draw.rect(surface, energy_core, 
-                        pygame.Rect(base_x + antenna_width, base_y - int(13 * scale), antenna_width, antenna_height))
+                        pygame.Rect(base_x + int(4 * scale), helmet_y + int(5 * scale), int(0.5 * scale), int(0.5 * scale)))
         
-        # 6. Additional details based on powerups (scaled)
-        if "damage" in self.powerup_timers:
-            # Damage boost indicators
-            indicator_radius = int(1 * scale)
-            pygame.draw.circle(surface, warning_red, (base_x - int(4 * scale), base_y - int(4 * scale)), indicator_radius)
-            pygame.draw.circle(surface, warning_red, (base_x + int(4 * scale), base_y - int(4 * scale)), indicator_radius)
-            
-        if "speed" in self.powerup_timers:
-            # Speed boost trails
-            trail_alpha = int(100 * math.sin(self.animation_timer * 0.02))
-            if trail_alpha > 0:
-                # Create temporary surface for alpha blending
-                trail_size = int(4 * scale)
-                trail_radius = int(1 * scale)
-                trail_surf = pygame.Surface((trail_size, trail_size))
-                trail_surf.set_alpha(trail_alpha)
-                pygame.draw.circle(trail_surf, energy_core, (trail_size//2, trail_size//2), trail_radius)
-                surface.blit(trail_surf, (base_x - int(4 * scale), base_y))
-                surface.blit(trail_surf, (base_x + int(2 * scale), base_y))
-        
-        # 7. Health indicator (scaled)
-        if self.health < self.max_health * 0.3:  # Low health warning
-            warning_alpha = int(150 * math.sin(self.animation_timer * 0.02))
-            if warning_alpha > 0:
-                # Create temporary surface for alpha blending
-                warning_width = int(12 * scale)
-                warning_height = int(14 * scale)
-                warning_surf = pygame.Surface((warning_width, warning_height))
-                warning_surf.set_alpha(warning_alpha)
-                pygame.draw.rect(warning_surf, warning_red, pygame.Rect(0, 0, warning_width, warning_height))
-                surface.blit(warning_surf, (base_x - warning_width//2, base_y - int(12 * scale)))
-
+        # Antenna/sensors with directional adjustment
+        antenna_height = int(3 * scale)
+        antenna_base_x = base_x + int(3 * scale)
+        antenna_base_y = helmet_y
+        if self.facing_direction == 1:  # Facing left, antenna on other side
+            antenna_base_x = base_x - int(3 * scale)
+        pygame.draw.line(surface, metal_accent, (antenna_base_x, antenna_base_y), 
+                        (antenna_base_x, antenna_base_y - antenna_height), int(1 * scale))
+        # Add glowing tip to antenna
+        pygame.draw.rect(surface, energy_core, 
+                        pygame.Rect(antenna_base_x - int(0.5 * scale), antenna_base_y - antenna_height - int(1 * scale), 
+                                    int(1 * scale), int(1 * scale)))
+    
     def _draw_shield_effect(self, surface, center_x, center_y):
         """Draw shield visual effect around player"""
         import time
@@ -550,57 +689,115 @@ class Player(pygame.sprite.Sprite):
         return self.health / actual_max_health
     
     def apply_level_upgrade(self, upgrade_id, level_system):
-        """Apply a level-up upgrade to the player"""
+        # Weapon upgrades
         if upgrade_id == "rapid_fire":
-            self.shoot_delay_multiplier *= 0.75  # 25% faster
+            self.shoot_delay_multiplier *= 0.8  # 20% faster firing
+            if self.shoot_delay_multiplier < 0.4:  # Cap at 60% reduction
+                if "rapid_fire" in level_system.available_upgrades:
+                    del level_system.available_upgrades["rapid_fire"]
         elif upgrade_id == "double_shot":
             self.has_double_shot = True
+            if "double_shot" in level_system.available_upgrades:
+                del level_system.available_upgrades["double_shot"]
         elif upgrade_id == "spread_shot":
             self.has_spread_shot = True
-            self.spread_shot_level = level_system.get_upgrade_level("spread_shot")
-        elif upgrade_id == "piercing_rounds":
+            self.spread_shot_level += 1
+            if self.spread_shot_level >= 3 and "spread_shot" in level_system.available_upgrades:
+                del level_system.available_upgrades["spread_shot"]
+        elif upgrade_id == "piercing":
             self.has_piercing = True
-        elif upgrade_id == "explosive_rounds":
+            if "piercing" in level_system.available_upgrades:
+                del level_system.available_upgrades["piercing"]
+        elif upgrade_id == "explosive":
             self.has_explosive = True
+            if "explosive" in level_system.available_upgrades:
+                del level_system.available_upgrades["explosive"]
+        # New weapons
+        elif upgrade_id in self.weapon_system.get_all_weapon_types():
+            self.current_weapon = upgrade_id
+            if upgrade_id in level_system.available_upgrades:
+                del level_system.available_upgrades[upgrade_id]
+        # Passive weapons
+        elif upgrade_id == "auto_targeting":
+            self.auto_targeting_level += 1
+            if self.auto_targeting_level >= 3 and "auto_targeting" in level_system.available_upgrades:
+                del level_system.available_upgrades["auto_targeting"]
+        elif upgrade_id == "orbital_missiles":
+            self.orbital_missiles_level += 1
+            if self.orbital_missiles_level >= 3 and "orbital_missiles" in level_system.available_upgrades:
+                del level_system.available_upgrades["orbital_missiles"]
+        elif upgrade_id == "energy_shuriken":
+            self.energy_shuriken_level += 1
+            if self.energy_shuriken_level >= 3 and "energy_shuriken" in level_system.available_upgrades:
+                del level_system.available_upgrades["energy_shuriken"]
+        elif upgrade_id == "laser_turret":
+            self.laser_turret_level += 1
+            if self.laser_turret_level >= 3 and "laser_turret" in level_system.available_upgrades:
+                del level_system.available_upgrades["laser_turret"]
+        elif upgrade_id == "drone_companion":
+            self.drone_companion_level += 1
+            if self.drone_companion_level >= 3 and "drone_companion" in level_system.available_upgrades:
+                del level_system.available_upgrades["drone_companion"]
+        # Character upgrades
         elif upgrade_id == "health_boost":
-            self.max_health_bonus += 25
-            self.heal(25)  # Also heal when taking health boost
+            self.max_health_bonus += 20
+            self.max_health += 20
+            self.health += 20
+            if self.max_health_bonus >= 100 and "health_boost" in level_system.available_upgrades:
+                del level_system.available_upgrades["health_boost"]
         elif upgrade_id == "speed_boost":
-            self.base_speed_multiplier *= 1.15  # 15% faster
+            self.base_speed_multiplier += 0.1  # 10% speed increase
+            if self.base_speed_multiplier >= 1.5 and "speed_boost" in level_system.available_upgrades:  # Cap at 50% increase
+                del level_system.available_upgrades["speed_boost"]
         elif upgrade_id == "damage_boost":
-            self.base_damage_multiplier *= 1.25  # 25% more damage
+            self.base_damage_multiplier += 0.1  # 10% damage increase
+            if self.base_damage_multiplier >= 1.5 and "damage_boost" in level_system.available_upgrades:  # Cap at 50% increase
+                del level_system.available_upgrades["damage_boost"]
         elif upgrade_id == "regeneration":
             self.has_regeneration = True
-            self.regen_level = level_system.get_upgrade_level("regeneration")
+            self.regen_level += 1
+            if self.regen_level >= 3 and "regeneration" in level_system.available_upgrades:
+                del level_system.available_upgrades["regeneration"]
         elif upgrade_id == "shield":
-            shield_level = level_system.get_upgrade_level("shield")
-            self.shield_max = shield_level * 50  # 50 shield per level
-            self.shield_current = self.shield_max  # Full shield on pickup
+            self.shield_max += 20
+            self.shield_current += 20
+            if self.shield_max >= 100 and "shield" in level_system.available_upgrades:
+                del level_system.available_upgrades["shield"]
+        # Utility
         elif upgrade_id == "area_damage":
             self.has_area_damage = True
-            self.area_damage_level = level_system.get_upgrade_level("area_damage")
-        elif upgrade_id == "auto_targeting":
-            self.auto_targeting_level = level_system.get_upgrade_level("auto_targeting")
-        elif upgrade_id == "laser_rifle":
-            self.current_weapon = "laser_rifle"
-        elif upgrade_id == "plasma_cannon":
-            self.current_weapon = "plasma_cannon"
-        elif upgrade_id == "shotgun":
-            self.current_weapon = "shotgun"
-        elif upgrade_id == "sniper_rifle":
-            self.current_weapon = "sniper_rifle"
-        elif upgrade_id == "machine_gun":
-            self.current_weapon = "machine_gun"
-        elif upgrade_id == "energy_beam":
-            self.current_weapon = "energy_beam"
-        elif upgrade_id == "orbital_missiles":
-            self.orbital_missiles_level = level_system.get_upgrade_level("orbital_missiles")
-        elif upgrade_id == "energy_shuriken":
-            self.energy_shuriken_level = level_system.get_upgrade_level("energy_shuriken")
-        elif upgrade_id == "laser_turret":
-            self.laser_turret_level = level_system.get_upgrade_level("laser_turret")
-        elif upgrade_id == "drone_companion":
-            self.drone_companion_level = level_system.get_upgrade_level("drone_companion")
+            self.area_damage_level += 1
+            if self.area_damage_level >= 3 and "area_damage" in level_system.available_upgrades:
+                del level_system.available_upgrades["area_damage"]
+        elif upgrade_id == "time_dilation":
+            level_system.apply_time_dilation(5000)  # 5 seconds
+            if "time_dilation" in level_system.available_upgrades:
+                del level_system.available_upgrades["time_dilation"]
+        elif upgrade_id == "xp_magnet":
+            level_system.xp_magnet_multiplier *= 2.0
+            if "xp_magnet" in level_system.available_upgrades:
+                del level_system.available_upgrades["xp_magnet"]
+        # New cybernetic implants
+        elif upgrade_id == "night_vision":
+            self.has_night_vision = True
+            self.night_vision_level += 1
+            if self.night_vision_level >= 3 and "night_vision" in level_system.available_upgrades:
+                del level_system.available_upgrades["night_vision"]
+        elif upgrade_id == "neural_link":
+            self.has_neural_link = True
+            self.neural_link_level += 1
+            if self.neural_link_level >= 3 and "neural_link" in level_system.available_upgrades:
+                del level_system.available_upgrades["neural_link"]
+        elif upgrade_id == "cyber_armor":
+            self.has_cyber_armor = True
+            self.cyber_armor_level += 1
+            if self.cyber_armor_level >= 3 and "cyber_armor" in level_system.available_upgrades:
+                del level_system.available_upgrades["cyber_armor"]
+        # Temporary upgrades
+        elif upgrade_id == "overclock":
+            self.apply_powerup("overclock", 30000)  # 30 seconds duration
+            self.shoot_delay_multiplier = 0.5  # 50% faster firing
+            # Do not remove overclock from available upgrades as it can be reapplied
     
     def get_area_damage_info(self):
         """Get area damage info for game logic"""

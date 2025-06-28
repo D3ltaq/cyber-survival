@@ -1063,7 +1063,7 @@ class Game:
             
             elif action_value == "max_upgrades":
                 # Apply all upgrades to max level
-                for upgrade_id in self.level_system.available_upgrades:
+                for upgrade_id in list(self.level_system.available_upgrades.keys()):
                     max_level = self.level_system.available_upgrades[upgrade_id]["max_level"]
                     for _ in range(max_level):
                         if self.level_system.apply_upgrade(upgrade_id):

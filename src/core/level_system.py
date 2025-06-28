@@ -82,6 +82,18 @@ class LevelSystem:
                 "type": "weapon_new",
                 "max_level": 1
             },
+            "plasma_shotgun": {
+                "name": "Plasma Shotgun",
+                "description": "Hybrid weapon with explosive spread shots",
+                "type": "weapon_new",
+                "max_level": 1
+            },
+            "overclock": {
+                "name": "Overclock",
+                "description": "Temporarily boost fire rate by 50% for 30 seconds",
+                "type": "temporary_upgrade",
+                "max_level": 999  # Can be taken multiple times
+            },
             
             # Passive traits
             "health_boost": {
@@ -144,6 +156,24 @@ class LevelSystem:
                 "type": "passive",
                 "max_level": 2
             },
+            "night_vision": {
+                "name": "Night Vision Implant",
+                "description": "Enhanced vision to detect hidden threats",
+                "type": "cybernetic",
+                "max_level": 3
+            },
+            "neural_link": {
+                "name": "Neural Link Implant",
+                "description": "Reduces weapon cooldowns by 5% per level",
+                "type": "cybernetic",
+                "max_level": 3
+            },
+            "cyber_armor": {
+                "name": "Cyber Armor Implant",
+                "description": "Reduces incoming damage by 10% per level",
+                "type": "cybernetic",
+                "max_level": 3
+            },
             
             # Utility
             "area_damage": {
@@ -162,6 +192,9 @@ class LevelSystem:
         
         # Player's current upgrades
         self.player_upgrades = {}
+        
+        # XP magnet multiplier
+        self.xp_magnet_multiplier = 1.0
     
     def add_xp(self, amount):
         """Add XP and check for level up"""
