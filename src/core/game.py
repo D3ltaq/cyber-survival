@@ -1410,26 +1410,34 @@ class Game:
             if event.button == 1:  # Left click
                 mouse_x, mouse_y = event.pos
                 
-                # Check which menu item was clicked
-                start_y = self.SCREEN_HEIGHT // 2 - 50
-                item_height = 60
+                # Check which menu item was clicked (coordinates match drawing code)
+                start_y = self.SCREEN_HEIGHT // 2 - 20
+                item_height = 80
                 
                 for i, item in enumerate(self.pause_menu_items):
                     item_y = start_y + i * item_height
-                    item_rect = pygame.Rect(self.SCREEN_WIDTH // 2 - 150, item_y - 20, 300, 50)
+                    # Panel dimensions match drawing code
+                    panel_width = 400
+                    panel_height = 60
+                    panel_x = self.SCREEN_WIDTH // 2 - panel_width // 2
+                    item_rect = pygame.Rect(panel_x, item_y - 30, panel_width, panel_height)
                     if item_rect.collidepoint(mouse_x, mouse_y):
                         self.pause_selected_index = i
                         self.handle_pause_selection()
                         break
         elif event.type == pygame.MOUSEMOTION:
-            # Highlight menu item under mouse
+            # Highlight menu item under mouse (coordinates match drawing code)
             mouse_x, mouse_y = event.pos
-            start_y = self.SCREEN_HEIGHT // 2 - 50
-            item_height = 60
+            start_y = self.SCREEN_HEIGHT // 2 - 20
+            item_height = 80
             
             for i, item in enumerate(self.pause_menu_items):
                 item_y = start_y + i * item_height
-                item_rect = pygame.Rect(self.SCREEN_WIDTH // 2 - 150, item_y - 20, 300, 50)
+                # Panel dimensions match drawing code
+                panel_width = 400
+                panel_height = 60
+                panel_x = self.SCREEN_WIDTH // 2 - panel_width // 2
+                item_rect = pygame.Rect(panel_x, item_y - 30, panel_width, panel_height)
                 if item_rect.collidepoint(mouse_x, mouse_y):
                     self.pause_selected_index = i
                     break

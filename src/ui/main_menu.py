@@ -87,7 +87,9 @@ class MainMenu:
             elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
                 return self.menu_items[self.selected_index]
             elif event.key == pygame.K_ESCAPE:
-                return "QUIT"
+                # ESC in main menu should not quit the game entirely
+                # Instead, do nothing or could be used to go back to a previous state
+                return None
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
                 mouse_x, mouse_y = event.pos
@@ -161,7 +163,7 @@ class MainMenu:
         hint_panel_rect = pygame.Rect(50, self.screen_height - 100, self.screen_width - 100, 60)
         self.draw_panel_border(surface, hint_panel_rect, self.BORDER_DARK, self.PANEL_BG)
         
-        hint_text = "↑↓ / WS: Navigate    Enter / Space / Click: Select    ESC: Quit"
+        hint_text = "↑↓ / WS: Navigate    Enter / Space / Click: Select"
         hint_surface = self.font_small.render(hint_text, True, self.GRAY_LIGHT)
         hint_rect = hint_surface.get_rect(center=hint_panel_rect.center)
         surface.blit(hint_surface, hint_rect)
