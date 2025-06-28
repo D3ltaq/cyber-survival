@@ -823,88 +823,191 @@ class Game:
     def draw_pause_screen(self):
         # Dark overlay
         overlay = pygame.Surface((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill(self.BLACK)
+        overlay.set_alpha(220)
+        overlay.fill((15, 20, 25))  # DARK_BG
         self.screen.blit(overlay, (0, 0))
         
-        # Title
-        font_large = pygame.font.Font(None, 72)
-        title_text = font_large.render("GAME PAUSED", True, self.ELECTRIC_BLUE)
-        title_rect = title_text.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 - 150))
-        self.screen.blit(title_text, title_rect)
+        # Title frame
+        self.draw_hex_frame(self.SCREEN_WIDTH // 2, 200, 350, 100)
         
-        # Menu items
+        # Title with glow effect
+        font_large = pygame.font.Font(None, 72)
+        title_text = "SYSTEM PAUSED"
+        title_surface = font_large.render(title_text, True, (0, 255, 255))  # CYAN_BRIGHT
+        title_rect = title_surface.get_rect(center=(self.SCREEN_WIDTH // 2, 180))
+        
+        # Glow effect
+        glow_surface = font_large.render(title_text, True, (0, 150, 180))  # CYAN_DARK
+        for offset in [(2, 2), (-2, -2), (2, -2), (-2, 2)]:
+            glow_rect = title_rect.copy()
+            glow_rect.x += offset[0]
+            glow_rect.y += offset[1]
+            self.screen.blit(glow_surface, glow_rect)
+        
+        self.screen.blit(title_surface, title_rect)
+        
+        # Menu items with cyberpunk panels
         font_medium = pygame.font.Font(None, 48)
-        start_y = self.SCREEN_HEIGHT // 2 - 50
-        item_height = 60
+        start_y = self.SCREEN_HEIGHT // 2 - 20
+        item_height = 80
         
         for i, item in enumerate(self.pause_menu_items):
             is_selected = (i == self.pause_selected_index)
+            item_y = start_y + i * item_height
             
-            # Colors
+            # Panel dimensions
+            panel_width = 400
+            panel_height = 60
+            panel_x = self.SCREEN_WIDTH // 2 - panel_width // 2
+            panel_rect = pygame.Rect(panel_x, item_y - 30, panel_width, panel_height)
+            
+            # Colors based on selection
             if is_selected:
-                text_color = self.CYAN
-                bg_color = (60, 60, 70)
-                border_color = self.CYAN
+                bg_color = (25, 35, 45)  # PANEL_BG
+                border_color = (0, 255, 255)  # CYAN_BRIGHT
+                text_color = (0, 255, 255)  # CYAN_BRIGHT
+                accent_color = (255, 165, 0)  # ORANGE
             else:
-                text_color = self.WHITE
-                bg_color = (30, 30, 40)
-                border_color = (60, 60, 70)
+                bg_color = (10, 20, 30)  # Darker panel
+                border_color = (60, 85, 110)  # BORDER_LIGHT
+                text_color = (255, 255, 255)  # WHITE
+                accent_color = (120, 120, 120)  # GRAY_MID
             
-            # Background
-            item_rect = pygame.Rect(self.SCREEN_WIDTH // 2 - 150, start_y + i * item_height - 20, 300, 50)
-            pygame.draw.rect(self.screen, bg_color, item_rect)
-            pygame.draw.rect(self.screen, border_color, item_rect, 2)
+            # Draw panel with angled corners
+            self.draw_angled_panel(panel_rect, bg_color, border_color)
+            
+            # Selection indicators
+            if is_selected:
+                # Left indicator
+                left_points = [
+                    (panel_rect.left - 20, item_y),
+                    (panel_rect.left - 5, item_y - 8),
+                    (panel_rect.left - 5, item_y + 8)
+                ]
+                pygame.draw.polygon(self.screen, accent_color, left_points)
+                
+                # Right indicator
+                right_points = [
+                    (panel_rect.right + 20, item_y),
+                    (panel_rect.right + 5, item_y - 8),
+                    (panel_rect.right + 5, item_y + 8)
+                ]
+                pygame.draw.polygon(self.screen, accent_color, right_points)
             
             # Text
             item_surface = font_medium.render(item, True, text_color)
-            item_text_rect = item_surface.get_rect(center=(self.SCREEN_WIDTH // 2, start_y + i * item_height))
+            item_text_rect = item_surface.get_rect(center=panel_rect.center)
             self.screen.blit(item_surface, item_text_rect)
-            
-            # Selection arrows
-            if is_selected:
-                pygame.draw.polygon(self.screen, self.CYAN, [
-                    (self.SCREEN_WIDTH // 2 - 180, start_y + i * item_height),
-                    (self.SCREEN_WIDTH // 2 - 165, start_y + i * item_height - 8),
-                    (self.SCREEN_WIDTH // 2 - 165, start_y + i * item_height + 8)
-                ])
-                pygame.draw.polygon(self.screen, self.CYAN, [
-                    (self.SCREEN_WIDTH // 2 + 180, start_y + i * item_height),
-                    (self.SCREEN_WIDTH // 2 + 165, start_y + i * item_height - 8),
-                    (self.SCREEN_WIDTH // 2 + 165, start_y + i * item_height + 8)
-                ])
         
-        # Controls hint
+        # Controls hint panel
+        hint_panel = pygame.Rect(self.SCREEN_WIDTH // 2 - 250, self.SCREEN_HEIGHT - 80, 500, 40)
+        self.draw_angled_panel(hint_panel, (25, 35, 45), (60, 85, 110))
+        
         font_small = pygame.font.Font(None, 24)
         hint_text = "↑↓ / WS: Navigate    Enter / Space / Click: Select    ESC: Resume"
-        hint_surface = font_small.render(hint_text, True, (120, 120, 120))
-        hint_rect = hint_surface.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT - 50))
+        hint_surface = font_small.render(hint_text, True, (180, 180, 180))  # GRAY_LIGHT
+        hint_rect = hint_surface.get_rect(center=hint_panel.center)
         self.screen.blit(hint_surface, hint_rect)
     
+    def draw_angled_panel(self, rect, bg_color, border_color):
+        """Draw a panel with angled corners using proper clipping"""
+        corner_size = 12
+        
+        # Create the angled panel shape (octagon)
+        points = [
+            (rect.left + corner_size, rect.top),                    # Top-left angled
+            (rect.right - corner_size, rect.top),                  # Top-right angled
+            (rect.right, rect.top + corner_size),                  # Right-top angled
+            (rect.right, rect.bottom - corner_size),               # Right-bottom angled
+            (rect.right - corner_size, rect.bottom),               # Bottom-right angled
+            (rect.left + corner_size, rect.bottom),                # Bottom-left angled
+            (rect.left, rect.bottom - corner_size),                # Left-bottom angled
+            (rect.left, rect.top + corner_size)                    # Left-top angled
+        ]
+        
+        # Draw the filled panel
+        pygame.draw.polygon(self.screen, bg_color, points)
+        
+        # Draw the border
+        pygame.draw.polygon(self.screen, border_color, points, 2)
+    
+    def draw_hex_frame(self, center_x, center_y, width, height):
+        """Draw a hexagonal frame"""
+        # Hexagon points
+        w2, h2 = width // 2, height // 2
+        hex_points = [
+            (center_x - w2 + 20, center_y - h2),
+            (center_x + w2 - 20, center_y - h2),
+            (center_x + w2, center_y),
+            (center_x + w2 - 20, center_y + h2),
+            (center_x - w2 + 20, center_y + h2),
+            (center_x - w2, center_y)
+        ]
+        
+        # Draw hexagon border
+        pygame.draw.polygon(self.screen, (25, 35, 45), hex_points)  # PANEL_BG
+        pygame.draw.polygon(self.screen, (0, 200, 220), hex_points, 3)  # CYAN_MID
+        
+        # Corner accents
+        for i, point in enumerate(hex_points):
+            pygame.draw.circle(self.screen, (255, 165, 0), point, 4)  # ORANGE
+    
     def draw_game_over_screen(self):
+        # Dark overlay
         overlay = pygame.Surface((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill(self.BLACK)
+        overlay.set_alpha(220)
+        overlay.fill((15, 20, 25))  # DARK_BG
         self.screen.blit(overlay, (0, 0))
         
-        font = pygame.font.Font(None, 72)
-        text = font.render("GAME OVER", True, self.HOT_PINK)
-        text_rect = text.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 - 50))
-        self.screen.blit(text, text_rect)
+        # Title frame
+        self.draw_hex_frame(self.SCREEN_WIDTH // 2, 200, 400, 100)
         
+        # Title with glow effect
+        font_large = pygame.font.Font(None, 72)
+        title_text = "SYSTEM FAILURE"
+        title_surface = font_large.render(title_text, True, (255, 50, 50))  # RED_BRIGHT
+        title_rect = title_surface.get_rect(center=(self.SCREEN_WIDTH // 2, 180))
+        
+        # Glow effect
+        glow_surface = font_large.render(title_text, True, (150, 30, 30))  # Darker red
+        for offset in [(3, 3), (-3, -3), (3, -3), (-3, 3)]:
+            glow_rect = title_rect.copy()
+            glow_rect.x += offset[0]
+            glow_rect.y += offset[1]
+            self.screen.blit(glow_surface, glow_rect)
+        
+        self.screen.blit(title_surface, title_rect)
+        
+        # Stats panel
+        stats_panel = pygame.Rect(self.SCREEN_WIDTH // 2 - 250, 280, 500, 200)
+        self.draw_angled_panel(stats_panel, (25, 35, 45), (200, 100, 255))  # PANEL_BG, PURPLE_BRIGHT
+        
+        # Stats content
         font_medium = pygame.font.Font(None, 48)
-        score_text = font_medium.render(f"Final Score: {self.score}", True, self.ELECTRIC_BLUE)
-        score_rect = score_text.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2))
-        self.screen.blit(score_text, score_rect)
-        
-        wave_text = font_medium.render(f"Wave Reached: {self.current_wave}", True, self.MINT_GREEN)
-        wave_rect = wave_text.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 40))
-        self.screen.blit(wave_text, wave_rect)
-        
         font_small = pygame.font.Font(None, 36)
-        restart_text = font_small.render("Press R to restart", True, self.MINT_GREEN)
-        restart_rect = restart_text.get_rect(center=(self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 100))
-        self.screen.blit(restart_text, restart_rect)
+        
+        # Final score
+        score_label = font_small.render("FINAL SCORE", True, (200, 100, 255))  # PURPLE_BRIGHT
+        self.screen.blit(score_label, (stats_panel.x + 30, stats_panel.y + 30))
+        
+        score_value = font_medium.render(f"{self.score:,}", True, (255, 255, 255))  # WHITE
+        self.screen.blit(score_value, (stats_panel.x + 30, stats_panel.y + 60))
+        
+        # Wave reached
+        wave_label = font_small.render("WAVE REACHED", True, (0, 255, 255))  # CYAN_BRIGHT
+        self.screen.blit(wave_label, (stats_panel.x + 30, stats_panel.y + 110))
+        
+        wave_value = font_medium.render(f"{self.current_wave}", True, (255, 255, 255))  # WHITE
+        self.screen.blit(wave_value, (stats_panel.x + 30, stats_panel.y + 140))
+        
+        # Restart instruction panel
+        restart_panel = pygame.Rect(self.SCREEN_WIDTH // 2 - 200, self.SCREEN_HEIGHT - 120, 400, 60)
+        self.draw_angled_panel(restart_panel, (25, 35, 45), (255, 165, 0))  # PANEL_BG, ORANGE
+        
+        restart_text = "Press R to restart mission"
+        restart_surface = font_small.render(restart_text, True, (255, 165, 0))  # ORANGE
+        restart_rect = restart_surface.get_rect(center=restart_panel.center)
+        self.screen.blit(restart_surface, restart_rect)
     
     def restart_game(self):
         self.__init__()
