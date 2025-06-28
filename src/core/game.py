@@ -46,6 +46,14 @@ class Game:
         self.WORLD_WIDTH = 4800   # 4x screen width
         self.WORLD_HEIGHT = 3200  # 4x screen height
         
+        # Load background map
+        try:
+            self.background_map = pygame.image.load("assets/pixel_art_map.png").convert()
+            print("Background map loaded successfully!")
+        except pygame.error:
+            print("Could not load assets/pixel_art_map.png, using simple background")
+            self.background_map = None
+        
         # Camera system
         self.camera_x = 0
         self.camera_y = 0
@@ -570,8 +578,8 @@ class Game:
         # Clear screen with dark background
         self.screen.fill(self.DARK_PURPLE)
         
-        # Draw simple grid background (cyberpunk style) - larger world grid
-        self.draw_world_grid()
+        # Draw background map or fallback to grid
+        self.draw_background()
         
         # Calculate total offset (camera + shake)
         total_offset_x = -self.camera_x + self.shake_offset_x
@@ -691,8 +699,38 @@ class Game:
             # Just add more camera shake instead of complex distortion
             self.add_camera_shake(int(self.screen_distortion * 5))
     
+    def draw_background(self):
+        """Draw the background map or fallback to grid"""
+        if self.background_map:
+            # Calculate camera offset for background
+            total_offset_x = -self.camera_x + self.shake_offset_x
+            total_offset_y = -self.camera_y + self.shake_offset_y
+            
+            # Create a rect for the visible portion of the background
+            source_rect = pygame.Rect(
+                max(0, -total_offset_x),  # Source x
+                max(0, -total_offset_y),  # Source y
+                min(self.SCREEN_WIDTH, self.background_map.get_width() + total_offset_x),  # Source width
+                min(self.SCREEN_HEIGHT, self.background_map.get_height() + total_offset_y)  # Source height
+            )
+            
+            # Destination rect on screen
+            dest_rect = pygame.Rect(
+                max(0, total_offset_x),  # Dest x
+                max(0, total_offset_y),  # Dest y
+                source_rect.width,       # Dest width
+                source_rect.height       # Dest height
+            )
+            
+            # Only draw if there's something to draw
+            if source_rect.width > 0 and source_rect.height > 0:
+                self.screen.blit(self.background_map, dest_rect, source_rect)
+        else:
+            # Fallback to simple grid
+            self.draw_world_grid()
+    
     def draw_world_grid(self):
-        """Draw a grid that shows the world coordinates"""
+        """Draw a grid that shows the world coordinates (fallback)"""
         grid_size = 100  # Larger grid for better visibility
         grid_color = (self.CYAN[0]//6, self.CYAN[1]//6, self.CYAN[2]//6)  # Dimmer grid
         
