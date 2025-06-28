@@ -101,6 +101,11 @@ class Enemy(pygame.sprite.Sprite):
         self.movement_trail = []  # For movement animation
         self.last_position = (self.rect.centerx, self.rect.centery)
         
+        # Shooting mechanics
+        self.shoot_timer = 0
+        self.shoot_cooldown = self._get_shoot_cooldown()
+        self.can_shoot = self._can_enemy_shoot()
+        
         # Colors (New palette)
         self.CORAL = (255, 134, 178)
         self.CYAN = (108, 222, 255)
@@ -268,6 +273,68 @@ class Enemy(pygame.sprite.Sprite):
         
         # Clamp health
         self.health = max(0, self.health)
+    
+    def _can_enemy_shoot(self):
+        """Determine if this enemy type can shoot"""
+        return self.enemy_type in ["sniper", "elite", "boss"]
+    
+    def _get_shoot_cooldown(self):
+        """Get shooting cooldown based on enemy type"""
+        if self.enemy_type == "sniper":
+            return 2000  # 2 seconds
+        elif self.enemy_type == "elite":
+            return 1500  # 1.5 seconds
+        elif self.enemy_type == "boss":
+            return 800   # 0.8 seconds (faster shooting)
+        return 9999999  # Never shoot for other types
+    
+    def can_shoot_at_player(self, player_pos):
+        """Check if enemy can shoot at player (range and line of sight)"""
+        if not self.can_shoot:
+            return False
+        
+        player_x, player_y = player_pos
+        dx = player_x - self.rect.centerx
+        dy = player_y - self.rect.centery
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        # Range check based on enemy type
+        max_range = 300 if self.enemy_type == "sniper" else 200
+        return distance <= max_range
+    
+    def shoot_at_player(self, player_pos):
+        """Create a projectile aimed at the player"""
+        if self.shoot_timer > 0:
+            return None
+        
+        player_x, player_y = player_pos
+        dx = player_x - self.rect.centerx
+        dy = player_y - self.rect.centery
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance > 0:
+            # Normalize direction
+            dx /= distance
+            dy /= distance
+            
+            # Create enemy projectile
+            from .projectile import Projectile
+            angle = math.atan2(dy, dx)
+            projectile = Projectile(
+                self.rect.centerx, self.rect.centery,
+                angle,
+                damage=self.damage // 2,  # Enemy projectiles do less damage
+                speed=200,  # Projectile speed
+                color=(255, 100, 100)  # Red enemy projectiles
+            )
+            # Mark as enemy projectile (add custom attribute)
+            projectile.is_enemy = True  # type: ignore
+            
+            # Reset shoot timer
+            self.shoot_timer = self.shoot_cooldown
+            return projectile
+        
+        return None
     
     def draw_shadow(self, surface, center_x, center_y):
         """Draw realistic shaped shadow based on enemy type (sun from South-West)"""

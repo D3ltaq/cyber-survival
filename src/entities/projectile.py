@@ -17,6 +17,7 @@ class Projectile(pygame.sprite.Sprite):
         self.distance_traveled = 0
         self.start_x = x
         self.start_y = y
+        self.is_enemy = False  # Track if projectile is from enemy
         
         # Calculate velocity components
         self.velocity_x = math.cos(angle) * speed

@@ -265,9 +265,20 @@ class Game:
                         if self.enemies_spawned >= self.enemies_in_wave:
                             break
         
-        # Update enemies
+        # Update enemies and handle shooting
         for enemy in self.enemies:
             enemy.update(dt, self.player.rect.center)
+            
+            # Update enemy shooting timer
+            if hasattr(enemy, 'shoot_timer'):
+                enemy.shoot_timer = max(0, enemy.shoot_timer - dt)
+            
+            # Handle enemy shooting
+            if hasattr(enemy, 'can_shoot') and enemy.can_shoot:
+                if enemy.can_shoot_at_player(self.player.rect.center):
+                    enemy_projectile = enemy.shoot_at_player(self.player.rect.center)
+                    if enemy_projectile:
+                        self.projectiles.add(enemy_projectile)
         
         # Update projectiles
         projectiles_to_remove = []
@@ -437,9 +448,35 @@ class Game:
         self.sound_manager.play_sound("wave_complete")
     
     def check_collisions(self):
-        # Projectile vs Enemy collisions
+        # Separate player and enemy projectiles
+        player_projectiles = []
+        enemy_projectiles = []
+        
+        for projectile in list(self.projectiles):
+            if hasattr(projectile, 'is_enemy') and projectile.is_enemy:
+                enemy_projectiles.append(projectile)
+            else:
+                player_projectiles.append(projectile)
+        
+        # Enemy projectiles vs Player collisions
         projectiles_to_remove = []
-        for projectile in list(self.projectiles):  # Convert to list for safe iteration
+        for projectile in enemy_projectiles:
+            if self.player.rect.colliderect(projectile.rect):
+                if self.player.can_take_damage():
+                    self.player.take_damage(projectile.damage)
+                    self.add_camera_shake(8)
+                    self.sound_manager.play_sound("player_hit")
+                    
+                    # Create damage particles
+                    self.particle_system.create_explosion(
+                        self.player.rect.centerx, self.player.rect.centery,
+                        self.HOT_PINK, 6
+                    )
+                
+                projectiles_to_remove.append(projectile)
+        
+        # Player projectiles vs Enemy collisions
+        for projectile in player_projectiles:
             hit_enemies = pygame.sprite.spritecollide(projectile, self.enemies, False)
             enemies_hit_this_frame = []
             
@@ -464,7 +501,10 @@ class Game:
                 # Check if enemy is dead
                 if enemy.health <= 0:
                     # Drop XP orb
-                    enemy_type_values = {"basic": 1, "fast": 2, "tank": 3, "boss": 5}
+                    enemy_type_values = {
+                        "basic": 1, "fast": 2, "tank": 3, "sniper": 3, 
+                        "swarm": 1, "heavy": 4, "elite": 4, "boss": 5
+                    }
                     type_multiplier = enemy_type_values.get(enemy.enemy_type, 1)
                     xp_value = 5 + (type_multiplier * 2)  # Different XP per enemy type
                     xp_orb = XPOrb(enemy.rect.centerx, enemy.rect.centery, xp_value)

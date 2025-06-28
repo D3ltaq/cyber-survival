@@ -20,7 +20,7 @@ class Player(pygame.sprite.Sprite):
         self.rect = pygame.Rect(x - 15, y - 15, 30, 30)
         self.image = pygame.Surface((30, 30))  # Required for pygame sprite
         self.image.set_colorkey((0, 0, 0))  # Make black transparent
-        self.speed = 300  # pixels per second
+        self.speed = 180  # pixels per second (reduced from 300 for better balance)
         self.max_health = 100
         self.health = self.max_health
         
@@ -317,11 +317,8 @@ class Player(pygame.sprite.Sprite):
         base_x = center_x
         base_y = center_y + bob_offset
         
-        # 1. Shadow/base (scaled)
-        shadow_width = int(16 * scale)
-        shadow_height = int(3 * scale)
-        shadow_rect = pygame.Rect(base_x - shadow_width//2, base_y + int(12 * scale), shadow_width, shadow_height)
-        pygame.draw.ellipse(surface, (0, 0, 0, 100), shadow_rect)
+        # 1. Realistic shaped shadow (like enemies)
+        self.draw_shadow(surface, center_x, center_y)
         
         # 2. Legs with walking animation (scaled)
         leg_offset = walk_offset if self.is_moving else 0
@@ -743,4 +740,41 @@ class Player(pygame.sprite.Sprite):
                 
                 # Simple drone representation
                 pygame.draw.circle(surface, self.ELECTRIC_BLUE, (int(drone_x), int(drone_y)), 6)
-                pygame.draw.circle(surface, self.WHITE, (int(drone_x), int(drone_y)), 3) 
+                pygame.draw.circle(surface, self.WHITE, (int(drone_x), int(drone_y)), 3)
+    
+    def draw_shadow(self, surface, center_x, center_y):
+        """Draw realistic shaped shadow for the player (same system as enemies)"""
+        # Shadow offset (sun from South-West) - same as enemies
+        shadow_offset_x = 4
+        shadow_offset_y = 6
+        shadow_alpha = 60
+        shadow_color = (30, 30, 30)
+        
+        # Create shadow surface for armored soldier
+        shadow_surf = pygame.Surface((30, 35))
+        shadow_surf.set_alpha(shadow_alpha)
+        shadow_surf.fill((0, 0, 0))
+        shadow_surf.set_colorkey((0, 0, 0))
+        
+        # Head shadow
+        pygame.draw.ellipse(shadow_surf, shadow_color, (10, 2, 10, 8))
+        
+        # Main torso shadow
+        pygame.draw.ellipse(shadow_surf, shadow_color, (8, 8, 14, 12))
+        
+        # Arms shadows
+        pygame.draw.ellipse(shadow_surf, shadow_color, (4, 10, 6, 8))  # Left arm
+        pygame.draw.ellipse(shadow_surf, shadow_color, (20, 10, 6, 8))  # Right arm
+        
+        # Legs shadows
+        pygame.draw.ellipse(shadow_surf, shadow_color, (9, 18, 5, 12))  # Left leg
+        pygame.draw.ellipse(shadow_surf, shadow_color, (16, 18, 5, 12))  # Right leg
+        
+        # Weapon shadow extending from right arm
+        pygame.draw.ellipse(shadow_surf, shadow_color, (24, 12, 8, 3))
+        
+        # Position shadow with offset
+        shadow_x = center_x - shadow_surf.get_width() // 2 + shadow_offset_x
+        shadow_y = center_y - shadow_surf.get_height() // 2 + shadow_offset_y
+        
+        surface.blit(shadow_surf, (shadow_x, shadow_y)) 
