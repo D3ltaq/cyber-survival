@@ -73,8 +73,7 @@ class UI:
         # Draw controls panel
         self.draw_controls_panel(surface)
         
-        # Draw debug info (if needed)
-        # self.draw_debug_panel(surface, camera_x, camera_y, player)
+        # Debug info can be enabled via cheat menu if needed
     
     def draw_health_panel(self, surface, player):
         """Draw cyberpunk-style health panel"""
@@ -326,28 +325,7 @@ class UI:
             control_surface = self.font_tiny.render(control, True, self.GRAY_LIGHT)
             surface.blit(control_surface, (panel_x + 15, panel_y + 15 + i * 18))
     
-    def draw_debug_panel(self, surface, camera_x, camera_y, player):
-        """Draw debug information panel"""
-        # Panel dimensions
-        panel_width = 250
-        panel_height = 80
-        panel_x = self.screen_width - panel_width - 20
-        panel_y = self.screen_height - panel_height - 20
-        
-        # Main panel
-        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
-        self.draw_angled_panel(surface, panel_rect, self.PANEL_BG, self.GRAY_MID)
-        
-        # Debug info
-        debug_lines = [
-            f"Camera: ({camera_x:.0f}, {camera_y:.0f})",
-            f"Player: ({player.rect.centerx:.0f}, {player.rect.centery:.0f})",
-            f"FPS: {pygame.time.Clock().get_fps():.0f}"
-        ]
-        
-        for i, line in enumerate(debug_lines):
-            debug_surface = self.font_tiny.render(line, True, self.GRAY_LIGHT)
-            surface.blit(debug_surface, (panel_x + 15, panel_y + 15 + i * 18))
+
     
     def draw_angled_panel(self, surface, rect, bg_color, border_color):
         """Draw a panel with angled corners using proper clipping"""
