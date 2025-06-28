@@ -269,12 +269,159 @@ class Enemy(pygame.sprite.Sprite):
         # Clamp health
         self.health = max(0, self.health)
     
+    def draw_shadow(self, surface, center_x, center_y):
+        """Draw realistic shaped shadow based on enemy type (sun from South-West)"""
+        # Shadow offset (sun from South-West)
+        shadow_offset_x = 4
+        shadow_offset_y = 6
+        shadow_alpha = 60
+        shadow_color = (30, 30, 30)
+        
+        # Create shadow surface
+        if self.enemy_type == "boss":
+            # Apocalypse Walker shadow - massive detailed AT-AT walker
+            shadow_surf = pygame.Surface((120, 90))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            # Main massive chassis shadow
+            pygame.draw.ellipse(shadow_surf, shadow_color, (25, 35, 60, 30))
+            # Command tower shadow (tall and prominent)
+            pygame.draw.ellipse(shadow_surf, shadow_color, (45, 15, 25, 25))
+            # Secondary turret shadows
+            pygame.draw.ellipse(shadow_surf, shadow_color, (35, 25, 12, 8))
+            pygame.draw.ellipse(shadow_surf, shadow_color, (65, 25, 12, 8))
+            
+            # Six massive walker legs with hydraulics (much larger)
+            leg_positions = [(10, 45), (35, 50), (65, 45), (10, 60), (35, 65), (65, 60)]
+            for leg_x, leg_y in leg_positions:
+                # Main leg strut
+                pygame.draw.ellipse(shadow_surf, shadow_color, (leg_x, leg_y, 15, 8))
+                # Foot pad
+                pygame.draw.ellipse(shadow_surf, shadow_color, (leg_x-2, leg_y+6, 19, 6))
+            
+            # Multiple weapon shadows (heavy armament)
+            # Main cannon
+            pygame.draw.ellipse(shadow_surf, shadow_color, (75, 40, 35, 12))
+            # Secondary weapons
+            pygame.draw.ellipse(shadow_surf, shadow_color, (80, 30, 20, 6))
+            pygame.draw.ellipse(shadow_surf, shadow_color, (80, 55, 20, 6))
+            
+            # Antenna/sensor arrays
+            pygame.draw.ellipse(shadow_surf, shadow_color, (50, 8, 8, 12))
+            pygame.draw.ellipse(shadow_surf, shadow_color, (58, 10, 6, 8))
+            
+        elif self.enemy_type == "elite":
+            # Elite War Machine shadow - detailed AT-AT tank walker
+            shadow_surf = pygame.Surface((85, 65))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            # Main tank chassis shadow (larger and more detailed)
+            pygame.draw.ellipse(shadow_surf, shadow_color, (15, 25, 45, 25))
+            # Command turret shadow (prominent)
+            pygame.draw.ellipse(shadow_surf, shadow_color, (30, 12, 20, 18))
+            # Sensor dome shadow
+            pygame.draw.ellipse(shadow_surf, shadow_color, (37, 8, 8, 8))
+            
+            # Four heavy walker legs with hydraulics (much larger)
+            leg_positions = [(8, 32), (55, 32), (8, 42), (55, 42)]
+            for leg_x, leg_y in leg_positions:
+                # Main leg strut (thicker)
+                pygame.draw.ellipse(shadow_surf, shadow_color, (leg_x, leg_y, 12, 6))
+                # Hydraulic piston shadow
+                pygame.draw.ellipse(shadow_surf, shadow_color, (leg_x+2, leg_y-3, 8, 4))
+                # Foot pad
+                pygame.draw.ellipse(shadow_surf, shadow_color, (leg_x-1, leg_y+4, 14, 5))
+            
+            # Heavy tank cannon shadow (much longer)
+            pygame.draw.ellipse(shadow_surf, shadow_color, (55, 30, 25, 8))
+            # Secondary weapon shadow
+            pygame.draw.ellipse(shadow_surf, shadow_color, (58, 20, 15, 5))
+            
+        elif self.enemy_type == "heavy":
+            # Heavy unit shadow - large rectangular with treads
+            shadow_surf = pygame.Surface((45, 30))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            # Main body
+            pygame.draw.ellipse(shadow_surf, shadow_color, (5, 8, 35, 18))
+            # Tread shadows
+            for i in range(0, 40, 4):
+                pygame.draw.circle(shadow_surf, shadow_color, (5 + i, 22), 2)
+            
+        elif self.enemy_type == "tank":
+            # Tank shadow - rectangular with treads
+            shadow_surf = pygame.Surface((35, 25))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            # Main body
+            pygame.draw.ellipse(shadow_surf, shadow_color, (3, 6, 25, 15))
+            # Tread shadows
+            for i in range(0, 30, 3):
+                pygame.draw.circle(shadow_surf, shadow_color, (3 + i, 18), 1)
+                
+        elif self.enemy_type == "sniper":
+            # Sniper shadow - elongated with weapon
+            shadow_surf = pygame.Surface((30, 20))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            # Body and long weapon
+            pygame.draw.ellipse(shadow_surf, shadow_color, (3, 6, 15, 10))
+            pygame.draw.ellipse(shadow_surf, shadow_color, (15, 8, 12, 4))
+            
+        elif self.enemy_type == "fast":
+            # Fast unit shadow - streamlined diamond
+            shadow_surf = pygame.Surface((20, 18))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            # Diamond shape
+            points = [(10, 2), (16, 9), (10, 16), (4, 9)]
+            pygame.draw.polygon(shadow_surf, shadow_color, points)
+            
+        elif self.enemy_type == "swarm":
+            # Small compact shadow
+            shadow_surf = pygame.Surface((15, 12))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            pygame.draw.ellipse(shadow_surf, shadow_color, (2, 3, 11, 6))
+            
+        else:  # basic
+            # Basic hexagonal shadow
+            shadow_surf = pygame.Surface((25, 20))
+            shadow_surf.set_alpha(shadow_alpha)
+            shadow_surf.fill((0, 0, 0))
+            shadow_surf.set_colorkey((0, 0, 0))
+            
+            # Hexagonal shape
+            points = [(12, 2), (18, 6), (18, 14), (12, 18), (6, 14), (6, 6)]
+            pygame.draw.polygon(shadow_surf, shadow_color, points)
+        
+        # Position shadow with offset
+        shadow_x = center_x - shadow_surf.get_width() // 2 + shadow_offset_x
+        shadow_y = center_y - shadow_surf.get_height() // 2 + shadow_offset_y
+        
+        surface.blit(shadow_surf, (shadow_x, shadow_y))
+
     def draw(self, surface):
         center_x, center_y = self.rect.center
         
-        # Draw enemy glow/aura for higher waves or special types
-        if self.wave >= 5 or self.enemy_type in ["boss", "elite"]:
-            self._draw_elite_aura(surface, center_x, center_y)
+        # Draw shadow first (underneath enemy)
+        self.draw_shadow(surface, center_x, center_y)
+        
+        # Aura effects disabled for cleaner appearance
         
         # Determine color based on type and damage flash
         draw_color = self.color
@@ -861,329 +1008,366 @@ class Enemy(pygame.sprite.Sprite):
             pygame.draw.circle(surface, (255, 200, 100), port, 1)
     
     def draw_elite_enemy(self, surface, center_x, center_y, color):
-        """Enhanced elite cyborg commander with advanced systems"""
-        # Animation offsets
-        hover_y = center_y + int(self.hover_offset * 1.2)
-        command_sway = math.sin(self.animation_timer * 0.004) * 2
-        elite_pulse = math.sin(self.animation_timer * 0.007) * 0.3 + 0.7
+        """Elite War Machine - Menacing military walker"""
+        # Enhanced animation system
+        hover_y = center_y + int(self.hover_offset * 0.2)  # Minimal hover for heavy unit
+        walk_cycle = math.sin(self.animation_timer * 0.003) * 2  # Subtle walking
+        body_sway = math.sin(self.animation_timer * 0.002) * 0.8  # Minimal sway
+        turret_rotation = math.sin(self.animation_timer * 0.0008) * 0.15  # Slow scanning
         
-        # Color variations
-        command_armor = (60, 50, 80)
-        elite_gold = (200, 150, 50)
-        command_blue = (50, 100, 200)
-        tactical_green = (100, 200, 100)
-        elite_energy = (255, 200, 100)
+        # Military color scheme - dark and menacing
+        dark_armor = (25, 30, 35)       # Very dark gray armor
+        steel_metal = (60, 65, 70)      # Dark steel
+        gun_metal = (40, 45, 50)        # Gun metal gray
+        danger_red = (120, 30, 30)      # Muted red for warnings
+        amber_light = (140, 100, 30)    # Amber warning lights
+        steel_highlight = (80, 85, 90)  # Steel highlights
         
-        # Main torso - command structure
-        torso_width = int(32 * elite_pulse)
-        torso_height = 28
-        torso_rect = pygame.Rect(center_x - torso_width//2 + command_sway, hover_y - 14, 
-                                torso_width, torso_height)
-        pygame.draw.rect(surface, command_armor, torso_rect)
-        pygame.draw.rect(surface, color, torso_rect, 4)
+        # === MAIN CHASSIS (Tank Body) ===
+        chassis_width = 42
+        chassis_height = 26
+        chassis_rect = pygame.Rect(center_x - chassis_width//2 + body_sway, hover_y - 10, 
+                                  chassis_width, chassis_height)
+        pygame.draw.rect(surface, dark_armor, chassis_rect)
+        pygame.draw.rect(surface, steel_metal, chassis_rect, 2)
         
-        # Command insignia on chest
-        insignia_rect = pygame.Rect(center_x - 6 + command_sway, hover_y - 8, 12, 8)
-        pygame.draw.rect(surface, elite_gold, insignia_rect)
-        pygame.draw.rect(surface, color, insignia_rect, 2)
+        # Armor plating details - angular and intimidating
+        for i in range(4):
+            plate_x = center_x - 18 + i * 9 + body_sway
+            plate_rect = pygame.Rect(plate_x, hover_y - 8, 6, 22)
+            pygame.draw.rect(surface, gun_metal, plate_rect)
+            pygame.draw.rect(surface, steel_highlight, plate_rect, 1)
         
-        # Elite rank indicators
-        for i in range(3):
-            rank_y = hover_y - 6 + i * 3
-            pygame.draw.rect(surface, elite_gold, 
-                           pygame.Rect(center_x - 2 + command_sway, rank_y, 4, 1))
+        # === WALKER LEGS (AT-AT Style) ===
+        leg_positions = [(-14, -10), (14, -10), (-14, 10), (14, 10)]  # Four legs
         
-        # Advanced command head
-        head_width = 20
-        head_height = 12
-        head_rect = pygame.Rect(center_x - head_width//2 + command_sway, hover_y - 26, 
-                               head_width, head_height)
-        pygame.draw.rect(surface, command_armor, head_rect)
-        pygame.draw.rect(surface, color, head_rect, 3)
-        
-        # Command visor - advanced HUD
-        visor_rect = pygame.Rect(center_x - 8 + command_sway, hover_y - 23, 16, 6)
-        pygame.draw.rect(surface, command_blue, visor_rect)
-        pygame.draw.rect(surface, elite_energy, visor_rect, 2)
-        
-        # HUD elements in visor
-        hud_pulse = math.sin(self.animation_timer * 0.01)
-        hud_intensity = max(0, min(255, int(150 + 100 * hud_pulse)))
-        hud_color = (hud_intensity, 200, 255)
-        
-        # HUD lines
-        for i in range(3):
-            hud_y = hover_y - 22 + i * 2
-            pygame.draw.line(surface, hud_color,
-                           (center_x - 6 + command_sway, hud_y),
-                           (center_x + 6 + command_sway, hud_y), 1)
-        
-        # Multiple tactical sensors
-        sensor_positions = [-6, 0, 6]
-        for i, x_offset in enumerate(sensor_positions):
-            sensor_pulse = math.sin(self.animation_timer * (0.008 + i * 0.002)) * 0.5 + 0.5
-            sensor_size = int(2 + sensor_pulse * 2)
+        for i, (leg_x, leg_y) in enumerate(leg_positions):
+            # Alternating walk cycle for legs
+            leg_phase = (i % 2) * math.pi
+            leg_extension = math.sin(self.animation_timer * 0.003 + leg_phase) * 3
             
-            if i == 1:  # Main command sensor
-                sensor_color = elite_energy
-            else:  # Tactical sensors
-                sensor_color = tactical_green
+            # Upper leg joint - heavy and mechanical
+            joint_x = center_x + leg_x + body_sway
+            joint_y = hover_y + leg_y
+            pygame.draw.circle(surface, gun_metal, (joint_x, joint_y), 5)
+            pygame.draw.circle(surface, steel_highlight, (joint_x, joint_y), 5, 2)
             
-            pygame.draw.circle(surface, sensor_color, 
-                             (center_x + x_offset + command_sway, hover_y - 20), sensor_size)
-            pygame.draw.circle(surface, self.WHITE, 
-                             (center_x + x_offset + command_sway, hover_y - 20), 1)
-        
-        # Elite weapon systems - advanced arms
-        weapon_sway = math.sin(self.animation_timer * 0.006) * 1.5
-        
-        # Left command arm
-        left_arm = pygame.Rect(center_x - 28 + weapon_sway, hover_y - 10, 10, 18)
-        pygame.draw.rect(surface, command_armor, left_arm)
-        pygame.draw.rect(surface, color, left_arm, 3)
-        
-        # Left weapon system
-        left_weapon = pygame.Rect(center_x - 35 + weapon_sway, hover_y - 3, 8, 3)
-        pygame.draw.rect(surface, elite_gold, left_weapon)
-        pygame.draw.rect(surface, elite_energy, 
-                        pygame.Rect(center_x - 36 + weapon_sway, hover_y - 2, 3, 1))
-        
-        # Right command arm
-        right_arm = pygame.Rect(center_x + 18 - weapon_sway, hover_y - 10, 10, 18)
-        pygame.draw.rect(surface, command_armor, right_arm)
-        pygame.draw.rect(surface, color, right_arm, 3)
-        
-        # Right weapon system
-        right_weapon = pygame.Rect(center_x + 27 - weapon_sway, hover_y - 3, 8, 3)
-        pygame.draw.rect(surface, elite_gold, right_weapon)
-        pygame.draw.rect(surface, elite_energy, 
-                        pygame.Rect(center_x + 33 - weapon_sway, hover_y - 2, 3, 1))
-        
-        # Elite power core - advanced energy system
-        core_pulse = math.sin(self.animation_timer * 0.009)
-        core_size = int(6 + core_pulse * 3)
-        core_intensity = max(0, min(255, int(180 + 75 * core_pulse)))
-        core_color = (core_intensity, 150, 255)
-        
-        pygame.draw.circle(surface, core_color, (center_x + command_sway, hover_y), core_size, 3)
-        pygame.draw.circle(surface, elite_energy, (center_x + command_sway, hover_y), core_size - 2)
-        pygame.draw.circle(surface, self.WHITE, (center_x + command_sway, hover_y), 2)
-        
-        # Energy distribution network
-        for angle in range(0, 360, 60):
-            network_angle = math.radians(angle + self.rotation_angle * 30)
-            network_end_x = center_x + math.cos(network_angle) * 12 + command_sway
-            network_end_y = hover_y + math.sin(network_angle) * 12
-            pygame.draw.line(surface, elite_energy, 
-                           (center_x + command_sway, hover_y), 
-                           (network_end_x, network_end_y), 1)
-        
-        # Elite mobility system - advanced legs
-        leg_hydraulics = math.sin(self.animation_timer * 0.005) * 2
-        
-        # Left leg system
-        left_leg = pygame.Rect(center_x - 14 + command_sway, hover_y + 14 + leg_hydraulics, 10, 14)
-        pygame.draw.rect(surface, command_armor, left_leg)
-        pygame.draw.rect(surface, color, left_leg, 3)
-        
-        # Left leg hydraulics
-        pygame.draw.line(surface, elite_gold,
-                        (center_x - 9 + command_sway, hover_y + 12),
-                        (center_x - 9 + command_sway, hover_y + 18 + leg_hydraulics), 2)
-        
-        # Right leg system
-        right_leg = pygame.Rect(center_x + 4 + command_sway, hover_y + 14 + leg_hydraulics, 10, 14)
-        pygame.draw.rect(surface, command_armor, right_leg)
-        pygame.draw.rect(surface, color, right_leg, 3)
-        
-        # Right leg hydraulics
-        pygame.draw.line(surface, elite_gold,
-                        (center_x + 9 + command_sway, hover_y + 12),
-                        (center_x + 9 + command_sway, hover_y + 18 + leg_hydraulics), 2)
-        
-        # Advanced communication arrays - command network
-        antenna_rotation = self.rotation_angle * 2
-        for i, side in enumerate([-1, 1]):
-            antenna_base_x = center_x + side * 10 + command_sway
-            antenna_base_y = hover_y - 26
+            # Lower leg segment
+            foot_x = joint_x + leg_extension
+            foot_y = joint_y + 20 + abs(leg_extension) * 0.4
             
-            antenna_tip_x = antenna_base_x + math.cos(antenna_rotation + i * math.pi) * 6
-            antenna_tip_y = antenna_base_y - 6 + math.sin(antenna_rotation + i * math.pi) * 2
+            # Leg strut - thick and armored
+            pygame.draw.line(surface, dark_armor, (joint_x, joint_y), (foot_x, foot_y), 7)
+            pygame.draw.line(surface, steel_metal, (joint_x, joint_y), (foot_x, foot_y), 5)
             
-            pygame.draw.line(surface, elite_gold, 
-                           (antenna_base_x, antenna_base_y), 
-                           (antenna_tip_x, antenna_tip_y), 3)
-            pygame.draw.circle(surface, elite_energy, (antenna_tip_x, antenna_tip_y), 3)
+            # Hydraulic piston - industrial look
+            piston_mid_x = (joint_x + foot_x) // 2
+            piston_mid_y = (joint_y + foot_y) // 2
+            pygame.draw.circle(surface, amber_light, (piston_mid_x, piston_mid_y), 2)
             
-            # Command signal indicators
-            signal_pulse = math.sin(self.animation_timer * 0.015 + i)
-            if signal_pulse > 0:
-                signal_intensity = int(signal_pulse * 150)
-                signal_color = (255, signal_intensity, signal_intensity)
-                pygame.draw.circle(surface, signal_color, (antenna_tip_x, antenna_tip_y), 1)
+            # Heavy foot pad
+            pygame.draw.circle(surface, dark_armor, (foot_x, foot_y), 6)
+            pygame.draw.circle(surface, steel_metal, (foot_x, foot_y), 6, 2)
+        
+        # === COMMAND TURRET ===
+        turret_y = hover_y - 20
+        turret_width = 32
+        turret_height = 18
+        
+        # Turret base - angular and intimidating
+        turret_rect = pygame.Rect(center_x - turret_width//2 + body_sway + turret_rotation, 
+                                 turret_y, turret_width, turret_height)
+        pygame.draw.rect(surface, dark_armor, turret_rect)
+        pygame.draw.rect(surface, steel_metal, turret_rect, 2)
+        
+        # Command bridge - smaller and more military
+        bridge_rect = pygame.Rect(center_x - 6 + body_sway, turret_y - 6, 12, 8)
+        pygame.draw.rect(surface, gun_metal, bridge_rect)
+        pygame.draw.rect(surface, steel_highlight, bridge_rect, 1)
+        
+        # === WEAPON SYSTEMS ===
+        weapon_recoil = math.sin(self.animation_timer * 0.006) * 1.5
+        
+        # Main cannon - heavy and menacing
+        cannon_length = 28
+        cannon_x = center_x + turret_width//2 + body_sway + turret_rotation
+        cannon_y = turret_y + 9
+        cannon_end_x = cannon_x + cannon_length - weapon_recoil
+        
+        # Thick cannon barrel
+        pygame.draw.line(surface, gun_metal, (cannon_x, cannon_y), (cannon_end_x, cannon_y), 6)
+        pygame.draw.line(surface, steel_metal, (cannon_x, cannon_y), (cannon_end_x, cannon_y), 4)
+        
+        # Cannon muzzle - subdued
+        pygame.draw.circle(surface, danger_red, (cannon_end_x, cannon_y), 3)
+        pygame.draw.circle(surface, gun_metal, (cannon_end_x, cannon_y), 2)
+        
+        # Secondary weapons (side mounted)
+        for side in [-1, 1]:
+            side_weapon_x = center_x + side * 22 + body_sway
+            side_weapon_y = hover_y - 2
+            pygame.draw.rect(surface, gun_metal, 
+                           pygame.Rect(side_weapon_x - 2, side_weapon_y - 3, 6, 3))
+            pygame.draw.circle(surface, danger_red, (side_weapon_x + 2, side_weapon_y - 1), 1)
+        
+        # === SENSOR SYSTEMS ===
+        # Main sensor - single menacing eye
+        sensor_y = turret_y + 4
+        pygame.draw.circle(surface, gun_metal, (center_x + body_sway, sensor_y), 4)
+        pygame.draw.circle(surface, danger_red, (center_x + body_sway, sensor_y), 3)
+        pygame.draw.circle(surface, steel_highlight, (center_x + body_sway, sensor_y), 1)
+        
+        # Side sensors
+        for side in [-1, 1]:
+            side_sensor_x = center_x + side * 8 + body_sway
+            pygame.draw.circle(surface, amber_light, (side_sensor_x, sensor_y), 2)
+        
+        # === POWER CORE ===
+        core_pulse = math.sin(self.animation_timer * 0.005) * 0.2 + 0.8
+        core_size = int(5 * core_pulse)
+        
+        pygame.draw.circle(surface, dark_armor, (center_x + body_sway, hover_y + 6), core_size + 2)
+        pygame.draw.circle(surface, amber_light, (center_x + body_sway, hover_y + 6), core_size)
+        pygame.draw.circle(surface, steel_highlight, (center_x + body_sway, hover_y + 6), 1)
+        
+        # === DAMAGE EFFECTS ===
+        if self.health < self.max_health * 0.5:
+            # Sparking damage effects
+            if random.random() < 0.2:  # Random sparking
+                spark_x = center_x + random.randint(-15, 15)
+                spark_y = hover_y + random.randint(-10, 10)
+                pygame.draw.circle(surface, amber_light, (spark_x, spark_y), 1)
     
     def draw_boss_enemy(self, surface, center_x, center_y, color):
-        """Ultimate boss cyborg with advanced animations and effects"""
-        # Advanced animation offsets
-        hover_y = center_y + int(self.hover_offset * 1.5)
-        boss_pulse = 1.0 + math.sin(self.pulse_timer * 0.008) * 0.15
-        power_surge = math.sin(self.animation_timer * 0.006) * 0.5 + 0.5
+        """Apocalypse Walker - Massive military destroyer"""
+        # Advanced animation system
+        hover_y = center_y + int(self.hover_offset * 0.1)  # Minimal hover for massive unit
+        walk_cycle = math.sin(self.animation_timer * 0.0015) * 3  # Slow, heavy walking
+        body_sway = math.sin(self.animation_timer * 0.001) * 1.5  # Massive body sway
+        turret_scan = math.sin(self.animation_timer * 0.0005) * 0.3  # Slow turret scanning
+        power_surge = math.sin(self.animation_timer * 0.003) * 0.3 + 0.7
         
-        # Advanced color palette
-        boss_armor = (80, 20, 80)  # Dark purple
-        elite_metal = (150, 120, 180)
-        danger_red = (255, 50, 50)
-        boss_energy = (255, 100, 255)  # Magenta energy
-        core_white = (255, 255, 255)
-        warning_orange = (255, 150, 0)
+        # Apocalypse color scheme - very dark and menacing
+        titan_armor = (20, 25, 30)       # Very dark armor
+        titan_metal = (50, 55, 60)       # Dark steel
+        gun_metal = (35, 40, 45)         # Gun metal
+        danger_red = (100, 25, 25)       # Muted danger red
+        warning_amber = (120, 80, 30)    # Amber warnings
+        steel_highlight = (70, 75, 80)   # Steel highlights
         
-        # Energy field around boss
-        field_radius = int(30 * boss_pulse)
-        field_alpha = int(30 * power_surge)
+        # === INTIMIDATION AURA (Subtle) ===
+        field_radius = int(30 + 5 * power_surge)
+        field_alpha = int(15 + 10 * power_surge)
         
-        for ring in range(3):
-            ring_radius = field_radius + ring * 8
-            # Create temporary surface for alpha blending
+        for ring in range(2):
+            ring_radius = field_radius + ring * 6
             field_surf = pygame.Surface((ring_radius * 2, ring_radius * 2))
-            field_surf.set_alpha(field_alpha)
-            pygame.draw.circle(field_surf, boss_energy, (ring_radius, ring_radius), ring_radius, 2)
+            field_surf.set_alpha(field_alpha // (ring + 1))
+            pygame.draw.circle(field_surf, danger_red, (ring_radius, ring_radius), ring_radius, 2)
             surface.blit(field_surf, (center_x - ring_radius, hover_y - ring_radius))
         
-        # Main torso - imposing and animated
-        torso_scale = boss_pulse
-        torso_width = int(36 * torso_scale)
-        torso_height = int(30 * torso_scale)
-        torso_rect = pygame.Rect(center_x - torso_width//2, hover_y - 15, torso_width, torso_height)
-        pygame.draw.rect(surface, boss_armor, torso_rect)
-        pygame.draw.rect(surface, color, torso_rect, 4)
+        # === MAIN CHASSIS (Massive Tank Body) ===
+        chassis_width = 60
+        chassis_height = 38
+        chassis_rect = pygame.Rect(center_x - chassis_width//2 + body_sway, hover_y - 15, 
+                                  chassis_width, chassis_height)
+        pygame.draw.rect(surface, titan_armor, chassis_rect)
+        pygame.draw.rect(surface, titan_metal, chassis_rect, 3)
         
-        # Armor plating with energy channels
-        for i in range(3):
-            plate_y = hover_y - 10 + i * 8
-            plate_rect = pygame.Rect(center_x - 15, plate_y, 30, 4)
-            pygame.draw.rect(surface, elite_metal, plate_rect)
-            # Energy flowing through armor
-            energy_flow = int(self.animation_timer * 0.02) % 30
-            energy_x = center_x - 15 + energy_flow
-            pygame.draw.circle(surface, boss_energy, (energy_x, plate_y + 2), 1)
-        
-        # Command head - rotating slightly
-        head_sway = math.sin(self.animation_timer * 0.003) * 2
-        head_rect = pygame.Rect(center_x - 12 + head_sway, hover_y - 25, 24, 15)
-        pygame.draw.rect(surface, boss_armor, head_rect)
-        pygame.draw.rect(surface, color, head_rect, 3)
-        
-        # Advanced visor with scanning beam
-        visor_rect = pygame.Rect(center_x - 10 + head_sway, hover_y - 22, 20, 8)
-        pygame.draw.rect(surface, danger_red, visor_rect)
-        pygame.draw.rect(surface, core_white, visor_rect, 2)
-        
-        # Scanning beam effect
-        beam_intensity = max(0, min(255, int(200 * power_surge)))
-        beam_color = (255, beam_intensity, beam_intensity)
-        pygame.draw.rect(surface, beam_color, 
-                        pygame.Rect(center_x - 8 + head_sway, hover_y - 21, 16, 2))
-        
-        # Multiple sensor eyes - each with different animation
-        eye_positions = [-6, 0, 6]
-        for i, x_offset in enumerate(eye_positions):
-            eye_pulse = math.sin(self.animation_timer * (0.01 + i * 0.002)) * 0.5 + 0.5
-            eye_size = int(3 + eye_pulse * 2)
-            eye_color = boss_energy if i == 1 else warning_orange
+        # Heavy armor plating - angular and menacing
+        for i in range(5):
+            plate_x = center_x - 25 + i * 10 + body_sway
+            plate_rect = pygame.Rect(plate_x, hover_y - 12, 8, 32)
+            pygame.draw.rect(surface, gun_metal, plate_rect)
+            pygame.draw.rect(surface, steel_highlight, plate_rect, 1)
             
+            # Subtle warning lights
+            if i % 2 == 0:
+                light_y = hover_y - 8 + (self.animation_timer * 0.005) % 20
+                pygame.draw.circle(surface, warning_amber, (plate_x + 4, int(light_y)), 1)
+        
+        # === TITAN WALKER LEGS (6 legs for stability) ===
+        leg_positions = [(-20, -12), (0, -15), (20, -12), (-20, 12), (0, 15), (20, 12)]
+        
+        for i, (leg_x, leg_y) in enumerate(leg_positions):
+            # Complex walk cycle for 6 legs
+            leg_phase = (i * math.pi / 3)
+            leg_extension = math.sin(self.animation_timer * 0.003 + leg_phase) * 6
+            leg_lift = abs(math.sin(self.animation_timer * 0.003 + leg_phase)) * 3
+            
+            # Upper leg joint (larger for boss)
+            joint_x = center_x + leg_x + body_sway
+            joint_y = hover_y + leg_y
+            pygame.draw.circle(surface, titan_metal, (joint_x, joint_y), 6)
+            pygame.draw.circle(surface, danger_red, (joint_x, joint_y), 6, 3)
+            
+            # Hydraulic system
+            hydraulic_rect = pygame.Rect(joint_x - 3, joint_y - 2, 6, 8)
+            pygame.draw.rect(surface, warning_amber, hydraulic_rect)
+            
+            # Lower leg segment (articulated)
+            mid_x = joint_x + leg_extension * 0.7
+            mid_y = joint_y + 15 - leg_lift
+            foot_x = joint_x + leg_extension
+            foot_y = joint_y + 25 + abs(leg_extension) * 0.3
+            
+            # Upper leg strut
+            pygame.draw.line(surface, titan_armor, (joint_x, joint_y), (mid_x, mid_y), 8)
+            pygame.draw.line(surface, titan_metal, (joint_x, joint_y), (mid_x, mid_y), 6)
+            
+            # Lower leg strut
+            pygame.draw.line(surface, titan_armor, (mid_x, mid_y), (foot_x, foot_y), 8)
+            pygame.draw.line(surface, titan_metal, (mid_x, mid_y), (foot_x, foot_y), 6)
+            
+            # Knee joint
+            pygame.draw.circle(surface, titan_metal, (mid_x, mid_y), 4)
+            pygame.draw.circle(surface, warning_amber, (mid_x, mid_y), 2)
+            
+            # Heavy foot pad with claws
+            pygame.draw.circle(surface, titan_armor, (foot_x, foot_y), 8)
+            pygame.draw.circle(surface, titan_metal, (foot_x, foot_y), 8, 3)
+            # Claws
+            for claw_angle in range(0, 360, 120):
+                claw_rad = math.radians(claw_angle)
+                claw_end_x = foot_x + math.cos(claw_rad) * 6
+                claw_end_y = foot_y + math.sin(claw_rad) * 6
+                pygame.draw.line(surface, danger_red, (foot_x, foot_y), (claw_end_x, claw_end_y), 2)
+        
+        # === COMMAND TOWER ===
+        tower_y = hover_y - 35
+        tower_width = 35
+        tower_height = 25
+        
+        # Main tower structure
+        tower_rect = pygame.Rect(center_x - tower_width//2 + body_sway + turret_scan, 
+                                tower_y, tower_width, tower_height)
+        pygame.draw.rect(surface, titan_armor, tower_rect)
+        pygame.draw.rect(surface, color, tower_rect, 4)
+        
+        # Command bridge (elevated)
+        bridge_rect = pygame.Rect(center_x - 12 + body_sway, tower_y - 12, 24, 12)
+        pygame.draw.rect(surface, titan_metal, bridge_rect)
+        pygame.draw.rect(surface, danger_red, bridge_rect, 3)
+        
+        # === MASSIVE WEAPON SYSTEMS ===
+        weapon_recoil = math.sin(self.animation_timer * 0.006) * 4
+        
+        # Primary plasma cannon (huge)
+        cannon_length = 40
+        cannon_x = center_x + tower_width//2 + body_sway + turret_scan
+        cannon_y = tower_y + 12
+        cannon_end_x = cannon_x + cannon_length - weapon_recoil
+        
+        # Cannon barrel (thick)
+        pygame.draw.line(surface, titan_metal, (cannon_x, cannon_y), (cannon_end_x, cannon_y), 8)
+        pygame.draw.line(surface, gun_metal, (cannon_x, cannon_y), (cannon_end_x, cannon_y), 6)
+        pygame.draw.line(surface, steel_highlight, (cannon_x, cannon_y), (cannon_end_x, cannon_y), 4)
+        
+        # Charging muzzle effect
+        charge_intensity = int(80 + 40 * power_surge)
+        charge_color = (charge_intensity, charge_intensity//2, charge_intensity//2)
+        pygame.draw.circle(surface, charge_color, (cannon_end_x, cannon_y), 6)
+        pygame.draw.circle(surface, danger_red, (cannon_end_x, cannon_y), 4)
+        pygame.draw.circle(surface, steel_highlight, (cannon_end_x, cannon_y), 2)
+        
+        # Secondary weapon turrets
+        for side in [-1, 1]:
+            turret_x = center_x + side * 25 + body_sway
+            turret_y = hover_y - 8
+            
+            # Turret housing
+            pygame.draw.circle(surface, titan_armor, (turret_x, turret_y), 8)
+            pygame.draw.circle(surface, titan_metal, (turret_x, turret_y), 8, 3)
+            
+            # Dual barrels
+            for barrel_offset in [-3, 3]:
+                barrel_end_x = turret_x + side * 12
+                barrel_end_y = turret_y + barrel_offset
+                pygame.draw.line(surface, titan_metal, (turret_x, turret_y + barrel_offset), 
+                               (barrel_end_x, barrel_end_y), 3)
+                pygame.draw.circle(surface, danger_red, (barrel_end_x, barrel_end_y), 2)
+        
+        # === ADVANCED SENSOR ARRAY ===
+        sensor_pulse = math.sin(self.animation_timer * 0.008) * 0.5 + 0.5
+        
+        # Main sensor dome
+        dome_y = tower_y - 12
+        pygame.draw.circle(surface, gun_metal, (center_x + body_sway, dome_y), 8)
+        pygame.draw.circle(surface, danger_red, (center_x + body_sway, dome_y), 6)
+        pygame.draw.circle(surface, steel_highlight, (center_x + body_sway, dome_y), 4)
+        
+        # Scanning beam
+        beam_length = 30
+        beam_angle = self.animation_timer * 0.005
+        beam_end_x = center_x + math.cos(beam_angle) * beam_length + body_sway
+        beam_end_y = dome_y + math.sin(beam_angle) * beam_length
+        pygame.draw.line(surface, danger_red, (center_x + body_sway, dome_y), 
+                        (beam_end_x, beam_end_y), 2)
+        
+        # Multiple sensor eyes
+        eye_positions = [(-8, tower_y + 5), (8, tower_y + 5), (0, tower_y + 8)]
+        for i, (eye_x, eye_y) in enumerate(eye_positions):
+            eye_size = int(3 + sensor_pulse * 2)
+            eye_color = danger_red if i < 2 else warning_amber
             pygame.draw.circle(surface, eye_color, 
-                             (center_x + x_offset + head_sway, hover_y - 18), eye_size)
-            pygame.draw.circle(surface, core_white, 
-                             (center_x + x_offset + head_sway, hover_y - 18), 1)
+                             (center_x + eye_x + body_sway, eye_y), eye_size)
+            pygame.draw.circle(surface, steel_highlight, 
+                             (center_x + eye_x + body_sway, eye_y), 1)
         
-        # Massive shoulder weapon systems - with recoil
-        weapon_recoil = math.sin(self.animation_timer * 0.01) * 3
+        # === MASSIVE POWER CORE ===
+        core_size = int(12 + 4 * power_surge)
+        core_intensity = int(200 + 55 * power_surge)
+        core_color = (core_intensity, 120, 255)
         
-        # Left weapon arm
-        left_arm = pygame.Rect(center_x - 28 - weapon_recoil, hover_y - 8, 10, 20)
-        pygame.draw.rect(surface, boss_armor, left_arm)
-        pygame.draw.rect(surface, color, left_arm, 3)
+        # Core housing
+        pygame.draw.circle(surface, titan_armor, (center_x + body_sway, hover_y + 8), core_size + 4)
+        pygame.draw.circle(surface, core_color, (center_x + body_sway, hover_y + 8), core_size)
+        pygame.draw.circle(surface, danger_red, (center_x + body_sway, hover_y + 8), core_size - 3)
+        pygame.draw.circle(surface, steel_highlight, (center_x + body_sway, hover_y + 8), 3)
         
-        # Right weapon arm
-        right_arm = pygame.Rect(center_x + 18 + weapon_recoil, hover_y - 8, 10, 20)
-        pygame.draw.rect(surface, boss_armor, right_arm)
-        pygame.draw.rect(surface, color, right_arm, 3)
+        # Power distribution network
+        for angle in range(0, 360, 30):
+            network_angle = math.radians(angle + self.rotation_angle * 20)
+            network_end_x = center_x + math.cos(network_angle) * 20 + body_sway
+            network_end_y = hover_y + 8 + math.sin(network_angle) * 15
+            pygame.draw.line(surface, danger_red, 
+                           (center_x + body_sway, hover_y + 8), 
+                           (network_end_x, network_end_y), 2)
         
-        # Massive weapon barrels with energy charging
-        charge_pulse = math.sin(self.animation_timer * 0.015)
-        charge_color = (255, max(0, min(255, int(100 + 155 * charge_pulse))), 0)
-        
-        # Left cannon
-        left_barrel = pygame.Rect(center_x - 35 - weapon_recoil, hover_y - 3, 8, 4)
-        pygame.draw.rect(surface, elite_metal, left_barrel)
-        pygame.draw.rect(surface, charge_color, 
-                        pygame.Rect(center_x - 36 - weapon_recoil, hover_y - 2, 3, 2))
-        
-        # Right cannon
-        right_barrel = pygame.Rect(center_x + 27 + weapon_recoil, hover_y - 3, 8, 4)
-        pygame.draw.rect(surface, elite_metal, right_barrel)
-        pygame.draw.rect(surface, charge_color, 
-                        pygame.Rect(center_x + 33 + weapon_recoil, hover_y - 2, 3, 2))
-        
-        # Central power core - massive and pulsing
-        core_size = int(10 * boss_pulse)
-        core_intensity = max(0, min(255, int(200 + 55 * power_surge)))
-        core_color = (core_intensity, 100, 255)
-        
-        pygame.draw.circle(surface, core_color, (center_x, hover_y), core_size, 3)
-        pygame.draw.circle(surface, core_white, (center_x, hover_y), core_size - 2)
-        pygame.draw.circle(surface, boss_energy, (center_x, hover_y), core_size - 4)
-        
-        # Power conduits emanating from core
-        for angle in range(0, 360, 45):
-            conduit_angle = math.radians(angle + self.rotation_angle * 50)
-            conduit_end_x = center_x + math.cos(conduit_angle) * 15
-            conduit_end_y = hover_y + math.sin(conduit_angle) * 15
-            pygame.draw.line(surface, boss_energy, 
-                           (center_x, hover_y), (conduit_end_x, conduit_end_y), 2)
-        
-        # Reinforced leg systems with hydraulics
-        leg_extend = math.sin(self.animation_timer * 0.006) * 2
-        
-        # Left leg
-        left_leg = pygame.Rect(center_x - 12, hover_y + 15 + leg_extend, 10, 15)
-        pygame.draw.rect(surface, boss_armor, left_leg)
-        pygame.draw.rect(surface, color, left_leg, 3)
-        
-        # Right leg
-        right_leg = pygame.Rect(center_x + 2, hover_y + 15 + leg_extend, 10, 15)
-        pygame.draw.rect(surface, boss_armor, right_leg)
-        pygame.draw.rect(surface, color, right_leg, 3)
-        
-        # Hydraulic pistons
-        pygame.draw.line(surface, elite_metal, 
-                        (center_x - 7, hover_y + 12), (center_x - 7, hover_y + 18 + leg_extend), 3)
-        pygame.draw.line(surface, elite_metal, 
-                        (center_x + 7, hover_y + 12), (center_x + 7, hover_y + 18 + leg_extend), 3)
-        
-        # Advanced communication arrays - rotating
-        antenna_angle = self.rotation_angle * 3
-        for i, side in enumerate([-1, 1]):
-            antenna_base_x = center_x + side * 8 + head_sway
-            antenna_base_y = hover_y - 25
+        # === COMMUNICATION ARRAY ===
+        # Multiple antennae for command coordination
+        antenna_positions = [(-15, tower_y - 5), (15, tower_y - 5), (0, tower_y - 18)]
+        for i, (ant_x, ant_y) in enumerate(antenna_positions):
+            antenna_rotation = self.rotation_angle * (2 + i)
             
-            antenna_tip_x = antenna_base_x + math.cos(antenna_angle + i) * 8
-            antenna_tip_y = antenna_base_y - 8 + math.sin(antenna_angle + i) * 3
+            antenna_base_x = center_x + ant_x + body_sway
+            antenna_tip_x = antenna_base_x + math.cos(antenna_rotation) * 10
+            antenna_tip_y = ant_y - 8 + math.sin(antenna_rotation) * 4
             
-            pygame.draw.line(surface, elite_metal, 
-                           (antenna_base_x, antenna_base_y), 
-                           (antenna_tip_x, antenna_tip_y), 3)
-            pygame.draw.circle(surface, boss_energy, (antenna_tip_x, antenna_tip_y), 3)
+            pygame.draw.line(surface, titan_metal, 
+                             (antenna_base_x, ant_y), (antenna_tip_x, antenna_tip_y), 4)
+            pygame.draw.circle(surface, gun_metal, (antenna_tip_x, antenna_tip_y), 4)
+            pygame.draw.circle(surface, danger_red, (antenna_tip_x, antenna_tip_y), 2)
         
-        # Boss health indicator (special)
-        if self.health < self.max_health * 0.5:  # When damaged, show more aggressive effects
-            danger_pulse = math.sin(self.animation_timer * 0.02)
-            danger_alpha = int(100 + 100 * danger_pulse)
-            # Create temporary surface for alpha blending
-            danger_surf = pygame.Surface(((field_radius + 10) * 2, (field_radius + 10) * 2))
-            danger_surf.set_alpha(danger_alpha)
-            pygame.draw.circle(danger_surf, danger_red, (field_radius + 10, field_radius + 10), field_radius + 10, 3)
-            surface.blit(danger_surf, (center_x - field_radius - 10, hover_y - field_radius - 10))
+        # === DANGER INDICATORS (When Damaged) ===
+        if self.health < self.max_health * 0.5:
+            # Sparking damage effects
+            spark_positions = [(center_x - 15, hover_y), (center_x + 15, hover_y), 
+                             (center_x, tower_y + 10)]
+            for spark_x, spark_y in spark_positions:
+                if random.random() < 0.3:  # Random sparking
+                    for _ in range(3):
+                        spark_offset_x = random.randint(-5, 5)
+                        spark_offset_y = random.randint(-5, 5)
+                        pygame.draw.circle(surface, warning_amber, 
+                                         (spark_x + spark_offset_x, spark_y + spark_offset_y), 1)
+            
+            # Damage warning field
+            damage_alpha = int(50 + 50 * power_surge)
+            damage_surf = pygame.Surface((field_radius * 2, field_radius * 2))
+            damage_surf.set_alpha(damage_alpha)
+            pygame.draw.circle(damage_surf, danger_red, (field_radius, field_radius), field_radius, 5)
+            surface.blit(damage_surf, (center_x - field_radius - 10, hover_y - field_radius - 10))
     
     def draw_health_bar(self, surface):
         bar_width = self.rect.width
